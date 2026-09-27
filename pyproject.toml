@@ -1,0 +1,28 @@
+[project]
+name = "sport-analyzer"
+version = "0.1.0"
+description = "Daily training-session analysis toolbox (Concept2 + Polar H10) producing claude-report.html"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "plotly",
+    "neurokit2",
+    "jinja2",
+    "pyyaml",
+    "markdown>=3.11",
+]
+
+[project.scripts]
+sport-analyzer = "sport_analyzer.cli:main"
+
+[dependency-groups]
+dev = [
+    "matplotlib>=3.11.2",
+    "pytest",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
