@@ -155,6 +155,9 @@ def render(res: Result, out: Path | None = None) -> Path:
         ("Work", mmss(sm.get("work_s")), f"{sm.get('distance_m', 0):.0f} m rowed", None),
         ("Energy", num(sm.get("work_kj"), suffix=" kJ"), "on the flywheel", "energy"),
     ]
+    if sm.get("kcal_active"):
+        kpis.append(("Burned", num(sm["kcal_active"], suffix=" kcal"),
+                     "on top of your day" + (f" · HR est. {sm['kcal_hr']:.0f} gross" if sm.get("kcal_hr") else ""), "kcal"))
     if res.hr1s is not None:
         kpis += [
             ("HR max", num(sm.get("hr_max_session"), suffix=" bpm"), f"{100 * sm['hr_max_session'] / res.profile.hr_max_est:.0f}% of {'HRmax' if res.profile.hr_max else 'est. HRmax'}", "hrmax"),
@@ -259,6 +262,9 @@ def render(res: Result, out: Path | None = None) -> Path:
     from .calendar import render_calendar
 
     render_calendar(s.path.parent)
+    from .nutrition import render_nutrition
+
+    render_nutrition(s.path.parent)
     return out
 
 

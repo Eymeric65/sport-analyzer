@@ -15,6 +15,8 @@ class Goals:
     cardio_sessions_per_week: int = 3
     session_minutes: tuple[int, int] = (45, 60)
     gym_sessions_per_week: int = 0
+    weight_target_kg: float | None = None  # secondary goal: lose a bit, without hurting the cardio
+    weight_rate_kg_per_week: float = 0.25
     raw: dict = field(default_factory=dict)
     body_md: str = ""
     path: Path | None = None
@@ -38,6 +40,8 @@ def load_goals(session_dir: Path) -> Goals:
                 cardio_sessions_per_week=int(meta.get("cardio_sessions_per_week") or 3),
                 session_minutes=tuple(mins) if isinstance(mins, list) else (mins, mins),
                 gym_sessions_per_week=int(meta.get("gym_sessions_per_week") or 0),
+                weight_target_kg=meta.get("weight_target_kg"),
+                weight_rate_kg_per_week=float(meta.get("weight_rate_kg_per_week") or 0.25),
                 raw=meta,
                 body_md=body.strip(),
                 path=p,
