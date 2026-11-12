@@ -4,198 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Training log {{ day.isoformat() }}</title>
-<style>
-@font-face { font-family: 'Fraunces'; font-style: normal; font-weight: 300 700; font-display: swap;
-  src: url(data:font/woff2;base64,{{ font_roman }}) format('woff2'); }
-@font-face { font-family: 'Fraunces'; font-style: italic; font-weight: 300 700; font-display: swap;
-  src: url(data:font/woff2;base64,{{ font_italic }}) format('woff2'); }
-
-/* eymeric.me tokens: two spot inks (Prussian, vermilion), sumi on washi */
-:root {
-  color-scheme: light;
-  --bg: #f4f0e6; --paper: #faf7f0; --surface: #ece5d6; --border: #d7ceba; --rule: #221d16;
-  --text: #221d16; --muted: #5d5448; --faint: #6b665c;
-  --prussian: #1f4e79; --prussian-soft: #dae4ef; --vermilion: #b83a20; --vermilion-soft: #f1d9ce;
-  --seal-shadow: #6e2415; --ink-contrast: #faf7f0; --grid: #e2dac8;
-  --good: #2f6b2f; --warning: #8a5a00; --serious: #b83a20;
-  --c-hr: #b83a20; --c-watts: #1f4e79; --c-spm: #6c6254; --c-breath: #1f4e79; --c-alpha: #1f4e79;
-  --c-other: #b83a20; --c-muted: #8a8173;
-  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-body: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --radius: 3px;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #15120d; --paper: #1b1712; --surface: #221d16; --border: #322d23; --rule: #ece5d6;
-    --text: #ece5d6; --muted: #b5ab98; --faint: #a99e8c;
-    --prussian: #63a2d8; --prussian-soft: #17324a; --vermilion: #ea7150; --vermilion-soft: #38190f;
-    --seal-shadow: #7a2a18; --ink-contrast: #17140e; --grid: #2a251d;
-    --good: #7cc47c; --warning: #fab219; --serious: #ea7150;
-    --c-hr: #ea7150; --c-watts: #63a2d8; --c-spm: #a99e8c; --c-breath: #63a2d8; --c-alpha: #63a2d8;
-    --c-other: #ea7150; --c-muted: #8f8574;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #15120d; --paper: #1b1712; --surface: #221d16; --border: #322d23; --rule: #ece5d6;
-  --text: #ece5d6; --muted: #b5ab98; --faint: #a99e8c;
-  --prussian: #63a2d8; --prussian-soft: #17324a; --vermilion: #ea7150; --vermilion-soft: #38190f;
-  --seal-shadow: #7a2a18; --ink-contrast: #17140e; --grid: #2a251d;
-  --good: #7cc47c; --warning: #fab219; --serious: #ea7150;
-  --c-hr: #ea7150; --c-watts: #63a2d8; --c-spm: #a99e8c; --c-breath: #63a2d8; --c-alpha: #63a2d8;
-  --c-other: #ea7150; --c-muted: #8f8574;
-}
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 15.5px/1.6 var(--font-body);
-  -webkit-font-smoothing: antialiased; overflow-x: hidden;
-  background-image: radial-gradient(90% 40% at 100% 0%, color-mix(in oklab, var(--prussian) 8%, transparent), transparent 60%),
-                    radial-gradient(60% 30% at 0% 12%, color-mix(in oklab, var(--vermilion) 6%, transparent), transparent 70%);
-  background-repeat: no-repeat; }
-main { max-width: 1040px; margin: 0 auto; padding: 20px 16px 72px; }
-h1, h2, h3 { font-family: var(--font-display); font-optical-sizing: auto; font-weight: 620; letter-spacing: -0.015em;
-  line-height: 1.08; text-wrap: balance; margin: 0; }
-h1 { font-size: clamp(2rem, 1.4rem + 3vw, 3.2rem); }
-h2 { font-size: clamp(1.4rem, 1.1rem + 1.2vw, 1.9rem); }
-h3 { font-size: 1.15rem; }
-p, li { color: var(--muted); }
-b, strong { color: var(--text); font-weight: 600; }
-a { color: var(--prussian); }
-.eyebrow { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .22em; font-size: .7rem;
-  font-weight: 500; color: var(--prussian); margin: 0 0 8px; }
-.eyebrow.v { color: var(--vermilion); }
-section { margin-top: 56px; }
-.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  border-bottom: 1px solid color-mix(in oklab, var(--rule) 55%, transparent); box-shadow: 0 2px 0 -1px var(--prussian);
-  padding-bottom: 10px; margin-bottom: 18px; }
-.sec-head .idx { font-family: var(--font-mono); font-size: .72rem; color: var(--faint); letter-spacing: .12em; }
-.lede { max-width: 72ch; margin: 0 0 16px; }
-
-/* masthead */
-.masthead { display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  border-bottom: 1px solid color-mix(in oklab, var(--rule) 55%, transparent); box-shadow: 0 2px 0 -1px var(--vermilion);
-  padding-bottom: 12px; }
-.brand { display: flex; align-items: center; gap: 10px; color: var(--text); font-family: var(--font-mono);
-  font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
-.mark { width: 30px; height: 30px; color: var(--vermilion); }
-.issue { font-family: var(--font-mono); font-size: .78rem; color: var(--faint); letter-spacing: .1em; }
-.hero { padding: 34px 0 8px; }
-.slate { margin-top: 18px; background: var(--paper); border: 1px solid var(--border); border-left: 3px solid var(--rule);
-  border-radius: var(--radius); padding: 2px 16px; }
-.slate p { margin: 10px 0; white-space: pre-line; color: var(--text); }
-.slate .eyebrow { margin-top: 12px; color: var(--faint); }
-
-/* objective ribbon */
-.goal { margin-top: 12px; display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center;
-  background: var(--prussian-soft); border-radius: var(--radius); padding: 12px 16px; }
-.goal .eyebrow { margin: 0; }
-.goal p { margin: 0; color: var(--text); }
-
-/* KPI tiles */
-.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-.kpi { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; position: relative; }
-.kpi .l { font-family: var(--font-mono); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--faint);
-  display: flex; gap: 6px; align-items: center; }
-.kpi .v { font-family: var(--font-display); font-size: 1.55rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 2px; }
-.kpi .s { font-size: .8rem; color: var(--muted); }
-.tip { all: unset; cursor: help; display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%;
-  border: 1px solid currentColor; font: 600 9px/1 var(--font-mono); color: var(--prussian); flex: none; vertical-align: 1px; }
-.tip:focus-visible { outline: 2px solid var(--prussian); outline-offset: 2px; }
-#tooltip { position: fixed; z-index: 50; max-width: min(320px, calc(100vw - 24px)); background: var(--text); color: var(--bg);
-  font: 13px/1.45 var(--font-body); padding: 10px 12px; border-radius: var(--radius); pointer-events: none;
-  opacity: 0; transform: translateY(4px); transition: opacity .12s, transform .12s; box-shadow: 3px 3px 0 0 var(--vermilion); }
-#tooltip.on { opacity: 1; transform: none; }
-
-/* actions: numbered seal stamps */
-.actions { counter-reset: act; display: grid; gap: 12px; }
-.action { display: grid; grid-template-columns: 44px 1fr; gap: 14px; background: var(--paper); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 14px 16px; }
-.seal { counter-increment: act; width: 38px; height: 38px; display: grid; place-items: center; background: var(--vermilion);
-  color: var(--ink-contrast); font: 700 1rem/1 var(--font-mono); border-radius: 2px; box-shadow: 3px 3px 0 0 var(--seal-shadow);
-  transform: rotate(-3deg); }
-.seal::before { content: counter(act, decimal-leading-zero); }
-.action h3 { margin: 2px 0 6px; }
-.action p { margin: 4px 0; font-size: .93rem; }
-.action .how { color: var(--text); }
-.action .how::before { content: "→ "; color: var(--vermilion); font-weight: 700; }
-
-/* prescription */
-.rx { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.rx-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 16px;
-  background: var(--prussian); color: var(--ink-contrast); }
-.rx-head h3 { color: var(--ink-contrast); font-size: 1.35rem; }
-.rx-head .tag { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .16em; border: 1px solid currentColor; padding: 3px 8px; border-radius: 2px; }
-.rx-body { padding: 6px 16px 14px; }
-.rx table td:first-child { font-weight: 600; color: var(--text); }
-.rx .cue { margin: 12px 0 0; }
-.rx .ok { margin: 8px 0 0; color: var(--text); }
-.rx .ok::before { content: "✓ SUCCESS = "; font-family: var(--font-mono); font-size: .72rem; color: var(--good); letter-spacing: .06em; }
-.zones-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
-.zm { border-radius: var(--radius); padding: 10px 12px; border: 1px solid var(--border); background: var(--paper); }
-.zm .l { font-family: var(--font-mono); font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; display: flex; gap: 6px; align-items: center; }
-.zm .v { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; margin-top: 2px; }
-.zm .s { font-size: .8rem; color: var(--muted); }
-.zm.easy { border-top: 4px solid #5b87b5; } .zm.grey { border-top: 4px solid #b9ae9a; } .zm.hard { border-top: 4px solid var(--vermilion); }
-
-/* week strip */
-.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
-.day { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 8px; min-height: 108px; }
-.day .d { font-family: var(--font-mono); font-size: .66rem; letter-spacing: .1em; color: var(--faint); text-transform: uppercase; }
-.day .n { font-weight: 600; font-size: .88rem; margin-top: 6px; line-height: 1.3; }
-.day .t { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .1em; margin-top: 6px; color: var(--prussian); }
-.day.hard { border-top: 3px solid var(--vermilion); } .day.hard .t { color: var(--vermilion); }
-.day.easy, .day.technique { border-top: 3px solid #5b87b5; }
-.day.step { border-top: 3px solid var(--prussian); }
-.day.gym { border-top: 3px solid var(--faint); } .day.rest { opacity: .7; }
-@media (max-width: 760px) { .week { grid-template-columns: repeat(2, 1fr); } .zones-mini { grid-template-columns: 1fr; }
-  .action { grid-template-columns: 36px 1fr; } .seal { width: 32px; height: 32px; font-size: .85rem; } }
-
-/* generic */
-.panel { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }
-.fig-cap { font-size: .85rem; color: var(--muted); margin: 8px 2px 0; }
-.insights { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 8px; }
-.insights li { padding: 10px 14px; background: var(--paper); border: 1px solid var(--border); border-left: 3px solid var(--prussian);
-  border-radius: var(--radius); font-size: .93rem; }
-.howto { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; margin: 0 0 16px; }
-.howto div { background: var(--surface); border-radius: var(--radius); padding: 10px 12px; font-size: .88rem; color: var(--muted); }
-.howto b { display: flex; gap: 6px; align-items: center; font-family: var(--font-mono); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text); margin-bottom: 4px; }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
-.card { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
-.card-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; }
-.card-head .meta { font-family: var(--font-mono); color: var(--faint); font-size: .72rem; letter-spacing: .06em; }
-.card .kpis { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); margin-top: 12px; }
-.card .kpi { background: var(--bg); border-color: transparent; }
-.card .kpi .v { font-size: 1.2rem; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.chip { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .03em; border-radius: 2px; padding: 3px 9px 3px 7px; border: 1px solid var(--border); color: var(--text); }
-.chip::before { margin-right: 6px; font-weight: 700; }
-.chip.good::before { content: "✓"; color: var(--good); }
-.chip.warning::before { content: "!"; color: var(--warning); }
-.chip.serious::before { content: "▲"; color: var(--serious); }
-.comment { border-left: 3px solid var(--vermilion); padding: 0 12px; margin-top: 12px; }
-.comment p { margin: 6px 0; color: var(--text); }
-.coach { background: var(--paper); border: 1px solid var(--border); border-left: 3px solid var(--vermilion); border-radius: var(--radius); padding: 4px 18px; }
-.coach h3 { margin-top: 16px; }
-table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
-th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
-th { font-family: var(--font-mono); color: var(--faint); font-weight: 500; font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; }
-.table-wrap { overflow-x: auto; }
-.zones-legend { display: flex; flex-wrap: wrap; gap: 12px; font-family: var(--font-mono); font-size: .7rem; color: var(--muted); margin: 8px 0 0; align-items: center; }
-.zones-legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 1px; background: var(--c); margin-right: 5px; vertical-align: -1px; }
-.muted { color: var(--faint); font-size: .85rem; }
-details { margin-top: 12px; }
-details summary { cursor: pointer; font-family: var(--font-mono); font-size: .75rem; letter-spacing: .08em; color: var(--prussian); }
-details[open] summary { margin-bottom: 8px; }
-.colophon { margin-top: 72px; padding-top: 16px; border-top: 1px solid color-mix(in oklab, var(--rule) 38%, transparent);
-  display: flex; gap: 14px; align-items: center; }
-.colophon .mark { width: 40px; height: 40px; }
-.colophon .name { font-family: var(--font-display); font-size: 1.4rem; font-weight: 620; }
-.colophon .imp { font-family: var(--font-mono); font-size: .7rem; color: var(--faint); letter-spacing: .06em; }
-.plotly-graph-div { width: 100% !important; }
-</style>
+{% include "_style.html" %}
 <script>{{ plotlyjs | safe }}</script>
 </head>
 <body>
@@ -205,12 +14,22 @@ details[open] summary { margin-bottom: 8px; }
   <div class="brand">{{ logo | safe }}<span>Eymeric · training log</span></div>
   <div class="issue">№ {{ '%02d' % n_session }} · {{ day.isoformat() }}</div>
 </div>
+{% set page = 'session' %}{% set nav_base = '../' %}{% include "_nav.html" %}
 
 <header class="hero">
   <p class="eyebrow v">Rowing · Concept2{% if has_h10 %} + Polar H10{% endif %}</p>
   <h1>{{ title }}</h1>
   <div class="slate"><p class="eyebrow">Your brief</p>{{ brief | safe }}</div>
   <div class="goal"><p class="eyebrow">Objective</p><p>{{ goal.headline }}</p></div>
+  {% if since %}
+  <div class="since-head"><p class="eyebrow">Since last time {{ tip('trend') }}</p><a href="../progress.html">All sessions →</a></div>
+  <div class="since">
+    {% for r in since %}<div class="kpi {{ r.status }}"><div class="l">{{ r.label }} {{ tip(r.tip) }}</div>
+      <div class="v">{{ r.value }} <small style="font-size:.6em">{{ r.unit }}</small></div>
+      <div class="d">{% if r.delta_s %}{{ r.delta_s }} {{ r.unit }}{% if r.status == 'better' %} ↑ better{% elif r.status == 'lower' %} · lower{% endif %}{% else %}baseline{% endif %}</div>
+      <div class="s">{{ r.note }}</div></div>{% endfor %}
+  </div>
+  {% endif %}
 </header>
 
 {% if rec and rec.actions %}
@@ -226,59 +45,35 @@ details[open] summary { margin-bottom: 8px; }
 {% endif %}
 
 {% if rec and rec.next %}
-<section id="next">
-  <div class="sec-head"><h2>Next session</h2><span class="idx">02 · PRESCRIPTION</span></div>
-  <p class="lede">{{ rec.why_next }}</p>
-  <div class="rx">
-    <div class="rx-head"><h3>{{ rec.next.name }} · {{ rec.next.minutes }} min</h3><span class="tag">{{ rec.next.tag }}</span></div>
-    <div class="rx-body table-wrap"><table>
-      <tr><th>Block</th><th>Duration</th><th>Intensity</th><th>Rate</th></tr>
-      {% for b in rec.next.blocks %}<tr><td>{{ b[0] }}</td><td>{{ b[1] }}</td><td>{{ b[2] }}</td><td>{{ b[3] }}</td></tr>{% endfor %}
-    </table>
-    <p class="cue">{{ rec.next.cue }}</p><p class="ok">{{ rec.next.success }}</p></div>
-  </div>
-  {% if rec.zones %}{% set z = rec.zones %}
-  <div class="zones-mini">
-    <div class="zm easy"><div class="l">Easy · 80 % of time {{ tip('vt1') }}</div><div class="v">≤ {{ z.easy_hr[1] }} bpm</div>
-      <div class="s">{% if z.easy_w %}≈ {{ z.easy_w[0] }}–{{ z.easy_w[1] }} W today · {% endif %}below the aerobic threshold ({{ '%.0f' % z.vt1_hr }} bpm, {{ z.vt1_src }})</div></div>
-    <div class="zm grey"><div class="l">Grey zone · avoid {{ tip('grey') }}</div><div class="v">{{ z.grey_hr[0] }}–{{ z.grey_hr[1] }} bpm</div>
-      <div class="s">tiring, and a weaker cardio stimulus for its cost</div></div>
-    <div class="zm hard"><div class="l">Hard · 20 % of time</div><div class="v">{{ z.hard_hr[0] }}–{{ z.hard_hr[1] }} bpm</div>
-      <div class="s">90–95 % HRmax, in 4-min intervals</div></div>
-  </div>
-  {% endif %}
-</section>
-
-<section id="week">
-  <div class="sec-head"><h2>The week ahead</h2><span class="idx">03 · PLAN</span></div>
-  <p class="lede">{{ goal.cardio_sessions_per_week }} cardio sessions per week (from goals.md): about 80 % easy and 20 % hard, with hard days 48 h apart.
-  This is the most reliable recipe for raising VO2max and the aerobic threshold.</p>
-  <div class="week">
-  {% for d in rec.week %}
-    <div class="day {{ 'hard' if d.type == 'vo2' else d.type }}"><div class="d">{{ d.date.strftime('%a %d') }}</div>
-      <div class="n">{{ d.name }}</div><div class="t">{{ d.tag }}{% if d.minutes %} · {{ d.minutes }}′{% endif %}</div></div>
-  {% endfor %}
-  </div>
-  <details><summary>All session recipes</summary>
-  {% for key, s in rec.sessions.items() %}
-    <h3 style="margin-top:14px">{{ s.name }} <span class="muted">· {{ s.tag }} · {{ s.minutes }} min</span></h3>
-    <div class="table-wrap"><table>{% for b in s.blocks %}<tr><td>{{ b[0] }}</td><td>{{ b[1] }}</td><td>{{ b[2] }}</td><td>{{ b[3] }}</td></tr>{% endfor %}</table></div>
-    <p class="muted">{{ s.cue }}</p>
-  {% endfor %}
-  </details>
-</section>
+<div class="nextup" style="margin-top:20px"><p><span class="eyebrow" style="margin-right:8px">Next up</span><b>{{ rec.next.name }}</b> · {{ rec.next.minutes }} min.
+  {{ rec.why_next }}</p><a href="../calendar.html#next">Prescription &amp; week in the calendar →</a></div>
 {% endif %}
 
 <section id="glance">
-  <div class="sec-head"><h2>Today at a glance</h2><span class="idx">04 · SUMMARY</span></div>
+  <div class="sec-head"><h2>Today at a glance</h2><span class="idx">02 · SUMMARY</span></div>
   <div class="kpis">
     {% for l, v, s, k in kpis %}<div class="kpi"><div class="l">{{ l }} {{ tip(k) }}</div><div class="v">{{ v }}</div><div class="s">{{ s }}</div></div>{% endfor %}
   </div>
   {% if coach_notes %}<div class="coach" style="margin-top:16px"><p class="eyebrow v" style="margin-top:14px">Coach notes</p>{{ coach_notes | safe }}</div>{% endif %}
 </section>
 
+<section id="progress">
+  <div class="sec-head"><h2>Your evolution</h2><span class="idx">03 · TREND</span></div>
+  <p class="lede">Every session adds a point. The line is the trend and the band is its uncertainty {{ tip('trend') }}: single days
+  bounce around with sleep, heat and company, so only changes bigger than that noise are called real.
+  <a href="../progress.html">Open the full progress page →</a></p>
+  {% if insights.trend %}<ul class="insights">{% for i in insights.trend %}<li>{{ i | safe }}</li>{% endfor %}</ul>{% endif %}
+  {% if figs.fitness %}<div class="panel">{{ figs.fitness | safe }}</div>
+  <p class="fig-cap">Big dot = today. Watts at 140 bpm come from the HR–power line when a session has one, otherwise from the steadiest piece {{ tip('w140') }}.
+  The anchor HR {{ tip('hr_anchor') }} needs the 6-min anchor block at the start of the session.</p>{% endif %}
+  {% if figs.load %}<div class="panel" style="margin-top:12px">{{ figs.load | safe }}</div>
+  <p class="fig-cap">Top: your fitness and fatigue curves from the training load {{ tip('ctl') }}. Bottom: minutes rowed per week, coloured by HR zone; the label is sessions done out of your weekly goal.</p>{% endif %}
+  {% if figs.multiples %}<div class="panel" style="margin-top:12px">{{ figs.multiples | safe }}</div>
+  <p class="fig-cap">The supporting markers: efficiency {{ tip('ef_net') }}, durability (decoupling) {{ tip('decoupling') }}, recovery {{ tip('hrr') }}, technique {{ tip('m_stroke') }} and the aerobic threshold {{ tip('vt1') }}.</p>{% endif %}
+</section>
+
 <section id="timeline">
-  <div class="sec-head"><h2>Session timeline</h2><span class="idx">05 · TIMELINE</span></div>
+  <div class="sec-head"><h2>Session timeline</h2><span class="idx">04 · TIMELINE</span></div>
   <div class="panel">{{ timeline | safe }}</div>
   <p class="fig-cap">Grey bands = exercises. Hover any line to read the values.{% if has_h10 %} The HR background shows the 5 zones{% if summary.hr_at_alpha1_075 %}, and the dashed line is your aerobic threshold{% endif %}.
   Stroke rate: the line is the PM5; the hollow dots are the same thing measured independently by the chest strap's accelerometer.{% endif %}</p>
@@ -290,7 +85,7 @@ details[open] summary { margin-bottom: 8px; }
 </section>
 
 <section id="exercises">
-  <div class="sec-head"><h2>Exercise by exercise</h2><span class="idx">06 · DETAIL</span></div>
+  <div class="sec-head"><h2>Exercise by exercise</h2><span class="idx">05 · DETAIL</span></div>
   {% for c in cards %}
   <article class="card">
     <div class="card-head"><h3>{{ c.label }}</h3><span class="meta">+{{ c.start }} MIN · C2 {{ c.piece }}</span></div>
@@ -313,7 +108,7 @@ details[open] summary { margin-bottom: 8px; }
 
 {% if has_h10 %}
 <section id="engine">
-  <div class="sec-head"><h2>The cardio engine</h2><span class="idx">07 · HR × POWER</span></div>
+  <div class="sec-head"><h2>The cardio engine</h2><span class="idx">06 · HR × POWER</span></div>
   <p class="lede">Your objective is more cardio, and this is how it shows up in the data: <b>more watts at the same heart rate</b>.
   This chart is the baseline every future session is compared against. {{ tip('hr_power') }}</p>
   <ul class="insights">{% for i in insights.cardio %}<li>{{ i | safe }}</li>{% endfor %}</ul>
@@ -322,7 +117,7 @@ details[open] summary { margin-bottom: 8px; }
 </section>
 
 <section id="breathing">
-  <div class="sec-head"><h2>Breathing, read from the ECG</h2><span class="idx">08 · RESPIRATION</span></div>
+  <div class="sec-head"><h2>Breathing, read from the ECG</h2><span class="idx">07 · RESPIRATION</span></div>
   <div class="howto">
     <div><b>How it works {{ tip('edr') }}</b>With each breath the lungs push the heart around a little, so the R-peak height on the chest ECG rises and falls with breathing. Counting those waves gives breaths per minute.</div>
     <div><b>Cross-checks {{ tip('rsa') }}</b>The heart also speeds up while you breathe in (RSA), and the strap accelerometer feels the chest move. At rest, all three are compared.</div>
@@ -348,7 +143,7 @@ details[open] summary { margin-bottom: 8px; }
 </section>
 
 <section id="threshold">
-  <div class="sec-head"><h2>Aerobic threshold from HRV</h2><span class="idx">09 · DFA α1</span></div>
+  <div class="sec-head"><h2>Aerobic threshold from HRV</h2><span class="idx">08 · DFA α1</span></div>
   <div class="howto">
     <div><b>What α1 is {{ tip('alpha1') }}</b>A measure of how "organised" the tiny beat-to-beat variations are. Relaxed heart: complex, fractal rhythm (α1 ≈ 1). Hard effort: the rhythm turns random (α1 → 0.5).</div>
     <div><b>Why it matters {{ tip('vt1') }}</b>The crossing of α1 = 0.75 lands close to the lab-measured aerobic threshold (VT1). That is the ceiling for your easy days, measured from your own heart and not from an age formula.</div>
@@ -361,23 +156,8 @@ details[open] summary { margin-bottom: 8px; }
   <p class="fig-cap">Same windows plotted against HR.{% if summary.hr_at_alpha1_075 %} The red line is where a robust fit through the kept windows crosses α1 = 0.75, your estimated aerobic threshold. Fatigue and ECG noise blur it, and a step test sharpens it.{% else %} No threshold line today: α1 has to actually approach 0.75 for the crossing to be measured, not extrapolated.{% endif %}</p>
 </section>
 
-<section id="progress">
-  <div class="sec-head"><h2>Progress</h2><span class="idx">10 · TREND</span></div>
-  {% if figs.progress %}<div class="panel">{{ figs.progress | safe }}</div>
-  {% elif progress_prev and not summary.watts_at_hr140 %}<p class="lede">No new point today: the HR–power line needs pieces at
-  different powers (or a step test), and today's data can't place 140 bpm reliably. The baseline stays
-  <b>{{ '%.0f' % progress_prev[-1].summary.watts_at_hr140 }} W at 140 bpm</b>{% if progress_prev[-1].summary.watts_at_vt1 %} and
-  <b>{{ '%.0f' % progress_prev[-1].summary.watts_at_vt1 }} W at the aerobic threshold</b>{% endif %} ({{ progress_prev[-1].date }}).</p>
-  {% elif not summary.watts_at_hr140 %}<p class="lede">No HR–power baseline yet: it needs pieces at different powers (or a step test).
-  Once there is one, this section plots watts at 140 bpm and at the aerobic threshold over time.</p>
-  {% else %}<p class="lede">This is the <b>first session with an HR–power line</b>, so it sets the baseline:
-  {% if summary.watts_at_hr140 %}<b>{{ '%.0f' % summary.watts_at_hr140 }} W at 140 bpm</b>{% endif %}
-  {% if summary.watts_at_vt1 %} and <b>{{ '%.0f' % summary.watts_at_vt1 }} W at the aerobic threshold</b>{% endif %}.
-  From the next session on, this section plots those numbers over time. Both lines rising = your cardio is improving.</p>{% endif %}
-</section>
-
 <section id="quality">
-  <div class="sec-head"><h2>Signal quality</h2><span class="idx">11 · DATA</span></div>
+  <div class="sec-head"><h2>Signal quality</h2><span class="idx">09 · DATA</span></div>
   <div class="panel">{{ figs.ecg | safe }}</div>
   <p class="fig-cap">While rowing, chest-muscle activity (EMG) adds noise to the ECG. R-peaks (▼) are still found by an HR-guided detector, and {{ '%.1f' % (summary.ecg_artefact_rate * 100) }}% of beats needed correction.</p>
   <details><summary>{{ notes | length }} notes on sources, alignment and quality</summary>
@@ -394,64 +174,6 @@ details[open] summary { margin-bottom: 8px; }
 <footer class="colophon">{{ logo | safe }}<div><div class="name">Eymeric Chauchat</div>
   <div class="imp">SPORT-ANALYZER · {{ profile.method | upper }} · GENERATED FROM RAW H10 + PM5 DATA</div></div></footer>
 </main>
-<div id="tooltip" role="tooltip"></div>
-<script>
-(function () {
-  // one floating tooltip for every "?": hover, keyboard focus, or tap
-  const tt = document.getElementById('tooltip');
-  let cur = null;
-  function show(el) {
-    cur = el; tt.textContent = el.dataset.tip; tt.classList.add('on');
-    const r = el.getBoundingClientRect(), w = tt.offsetWidth, h = tt.offsetHeight;
-    const x = Math.min(Math.max(12, r.left + r.width / 2 - w / 2), window.innerWidth - w - 12);
-    let y = r.bottom + 8; if (y + h > window.innerHeight - 8) y = r.top - h - 8;
-    tt.style.left = x + 'px'; tt.style.top = y + 'px';
-  }
-  function hide() { cur = null; tt.classList.remove('on'); }
-  document.querySelectorAll('.tip').forEach(function (el) {
-    el.addEventListener('mouseenter', function () { show(el); });
-    el.addEventListener('mouseleave', hide);
-    el.addEventListener('focus', function () { show(el); });
-    el.addEventListener('blur', hide);
-    el.addEventListener('click', function (e) { e.stopPropagation(); cur === el ? hide() : show(el); });
-  });
-  document.addEventListener('click', hide);
-  window.addEventListener('scroll', hide, { passive: true });
-
-  // Plotly can't read CSS variables: re-ink charts from the brand tokens, and again when the theme changes
-  function theme() {
-    const cs = getComputedStyle(document.documentElement), v = function (n) { return cs.getPropertyValue(n).trim(); };
-    const roles = { hr: v('--c-hr'), watts: v('--c-watts'), spm: v('--c-spm'), breath: v('--c-breath'),
-                    alpha: v('--c-alpha'), other: v('--c-other'), muted: v('--c-muted') };
-    document.querySelectorAll('.plotly-graph-div').forEach(function (gd) {
-      if (!gd.layout) return;
-      const upd = { 'font.color': v('--muted'), 'hoverlabel.bgcolor': v('--paper'), 'hoverlabel.bordercolor': v('--border'),
-                    'hoverlabel.font.color': v('--text'), 'legend.font.color': v('--muted') };
-      Object.keys(gd.layout).forEach(function (k) {
-        if (/^[xy]axis\d*$/.test(k)) { upd[k + '.gridcolor'] = v('--grid'); upd[k + '.linecolor'] = v('--grid'); upd[k + '.tickcolor'] = v('--grid'); }
-      });
-      (gd.layout.annotations || []).forEach(function (a, i) { upd['annotations[' + i + '].font.color'] = v('--faint'); });
-      Plotly.relayout(gd, upd);
-      (gd.data || []).forEach(function (tr, i) {
-        const c = roles[tr.meta]; if (!c) return;
-        const s = {};
-        if (tr.line) s['line.color'] = c;
-        if (tr.marker) {
-          s['marker.color'] = c;
-          if (String(tr.marker.symbol || '').indexOf('thin') >= 0) s['marker.line.color'] = c;
-          else if (tr.marker.line) s['marker.line.color'] = v('--paper');
-        }
-        if (tr.fill) s['fillcolor'] = c + '33';
-        Plotly.restyle(gd, s, [i]);
-      });
-      Plotly.Plots.resize(gd);
-    });
-  }
-  window.addEventListener('load', theme);
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', theme);
-  new MutationObserver(theme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-  window.addEventListener('resize', function () { document.querySelectorAll('.plotly-graph-div').forEach(function (gd) { Plotly.Plots.resize(gd); }); });
-})();
-</script>
+{% include "_scripts.html" %}
 </body>
 </html>

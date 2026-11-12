@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training progress</title>
+{% include "_style.html" %}
+<script>{{ plotlyjs | safe }}</script>
+</head>
+<body>
+{% macro tip(key) -%}{% if key and tips.get(key) %}<button class="tip" type="button" aria-label="What does this mean?" data-tip="{{ tips[key] }}">?</button>{% endif %}{%- endmacro %}
+<main>
+<div class="masthead">
+  <div class="brand">{{ logo | safe }}<span>Eymeric · training log</span></div>
+  <div class="issue">{{ total.sessions }} SESSIONS · SINCE {{ total.since.isoformat() }}</div>
+</div>
+{% set page = 'progress' %}{% set nav_base = '' %}{% include "_nav.html" %}
+
+<header class="hero">
+  <p class="eyebrow v">Rowing · the long view</p>
+  <h1>Your progress</h1>
+  <div class="goal"><p class="eyebrow">Objective</p><p>{{ goal.headline }}</p></div>
+  <div class="kpis" style="margin-top:14px">
+    <div class="kpi"><div class="l">Sessions</div><div class="v">{{ total.sessions }}</div><div class="s">since {{ total.since.strftime('%-d %b') }}</div></div>
+    <div class="kpi"><div class="l">Distance</div><div class="v">{{ '%.1f' % total.km }} km</div><div class="s">on the rower</div></div>
+    <div class="kpi"><div class="l">Time rowing</div><div class="v">{{ '%.1f' % total.hours }} h</div><div class="s">work, rests excluded</div></div>
+    {% if load %}<div class="kpi"><div class="l">Fitness / fatigue {{ tip('ctl') }}</div><div class="v">{{ '%.0f' % load.ctl }} / {{ '%.0f' % load.atl }}</div>
+      <div class="s">CTL / ATL · TRIMP per day</div></div>{% endif %}
+  </div>
+  {% if tiles %}
+  <div class="since-head"><p class="eyebrow">Where you were → where you are {{ tip('trend') }}</p></div>
+  <div class="since">
+    {% for r in tiles %}<div class="kpi {{ r.status }}"><div class="l">{{ r.label }} {{ tip(r.tip) }}</div>
+      <div class="v">{{ r.value }} <small style="font-size:.6em">{{ r.unit }}</small></div>
+      <div class="d">{{ r.delta_s }} {{ r.unit }}</div><div class="s">{{ r.note }}</div></div>{% endfor %}
+  </div>
+  {% endif %}
+</header>
+
+<section id="trend">
+  <div class="sec-head"><h2>The cardio engine over time</h2><span class="idx">01 · FITNESS</span></div>
+  {% if insights %}<ul class="insights">{% for i in insights %}<li>{{ i | safe }}</li>{% endfor %}</ul>{% endif %}
+  {% if figs.fitness %}<div class="panel">{{ figs.fitness | safe }}</div>
+  <p class="fig-cap">Dots = sessions, line = Kalman trend, band = its uncertainty. Big dot = latest session.
+  Watts at 140 bpm {{ tip('w140') }} · HR at the 6-min anchor {{ tip('hr_anchor') }}.</p>{% endif %}
+</section>
+
+<section id="load">
+  <div class="sec-head"><h2>Training load and consistency</h2><span class="idx">02 · LOAD</span></div>
+  {% if figs.load %}<div class="panel">{{ figs.load | safe }}</div>
+  <p class="fig-cap">Fitness rises slowly with regular sessions and fades in gaps; fatigue reacts within days {{ tip('ctl') }}.
+  Weekly bars: minutes by HR zone {{ tip('zones') }}, label = sessions out of your goal of {{ goal.cardio_sessions_per_week }}.</p>{% endif %}
+</section>
+
+{% if figs.multiples %}
+<section id="markers">
+  <div class="sec-head"><h2>Supporting markers</h2><span class="idx">03 · DETAIL</span></div>
+  <div class="panel">{{ figs.multiples | safe }}</div>
+  <p class="fig-cap">Efficiency {{ tip('ef_net') }}, durability {{ tip('decoupling') }}, recovery {{ tip('hrr') }}, technique {{ tip('m_stroke') }}, aerobic threshold {{ tip('vt1') }}.</p>
+</section>
+{% endif %}
+
+<section id="log">
+  <div class="sec-head"><h2>Every session</h2><span class="idx">04 · LOG</span></div>
+  <div class="panel table-wrap"><table class="log">
+    <tr><th>Date</th><th>Session</th><th class="n">Work</th><th class="n">Load</th><th class="n">W @140</th><th class="n">Anchor HR</th><th class="n">m/stroke</th><th>Coach's first line</th></tr>
+    {% for r in rows %}<tr class="{{ 'today' if r.today }}">
+      <td><a href="{{ r.dir }}/claude-report.html">{{ r.date.strftime('%a %d %b') }}</a></td>
+      <td>{{ r.label }}{% if r.hard %} <span class="muted">· hard</span>{% endif %}</td>
+      <td class="n">{{ r.work }}<br><span class="muted">{{ r.dist }}</span></td><td class="n">{{ r.trimp }}</td>
+      <td class="n">{{ r.w140 }}</td><td class="n">{{ r.anchor }}</td><td class="n">{{ r.mps }}</td>
+      <td class="note">{{ r.note }}</td></tr>{% endfor %}
+  </table></div>
+</section>
+
+<footer class="colophon">{{ logo | safe }}<div><div class="name">Eymeric Chauchat</div>
+  <div class="imp">SPORT-ANALYZER · PROGRESS · GENERATED {{ generated.isoformat() }}</div></div></footer>
+</main>
+{% include "_scripts.html" %}
+</body>
+</html>

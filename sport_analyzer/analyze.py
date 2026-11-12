@@ -10,7 +10,7 @@ import pandas as pd
 import yaml
 
 from .align import align_pieces
-from .analysis import cardio, ecg, hr as hrmod, hrv, respiration, rowing
+from .analysis import cardio, ecg, hr as hrmod, hrv, respiration, rowing, trend
 from .history import load_history
 from .io.goals import Goals, load_goals
 from .io.session import Session, load_session
@@ -54,7 +54,8 @@ def load_profile(path: Path | None = None) -> hrmod.Profile:
     if not path.exists():
         return hrmod.Profile()
     d = yaml.safe_load(path.read_text()) or {}
-    return hrmod.Profile(**{k: d.get(k) for k in ("age", "hr_rest", "hr_max", "sex", "weight_kg")})
+    keys = ("age", "hr_rest", "hr_max", "sex", "weight_kg", "anchor_watts", "anchor_spm")
+    return hrmod.Profile(**{k: d[k] for k in keys if d.get(k) is not None})
 
 
 def _in(t, a, b):
@@ -109,6 +110,7 @@ def analyze(session_dir) -> Result:
     _segment_metrics(res)
     _cardio_metrics(res)
     _session_metrics(res)
+    _trend_metrics(res)
     from .analysis.recommend import recommend
 
     res.recommendations = recommend(res)
@@ -189,6 +191,26 @@ def _cardio_metrics(res: Result) -> None:
             br = cardio.breathing_recovery(res.breathing, seg.t1, nxt)
             if len(br) >= 3:
                 res.breath_recovery[seg.label] = br
+
+
+def _trend_metrics(res: Result) -> None:
+    """Markers that make sessions comparable: the anchor block and a fitness point per steady piece."""
+    sm = res.summary
+    a = trend.anchor_test(res.segments, res.profile.anchor_watts)
+    if a:
+        sm.update(a)
+    slope = trend.pooled_slope(res.history, sm.get("hr_power_slope") if (sm.get("hr_power_r2") or 0) > 0.6 else None)
+    sm["slope_used"] = slope
+    hr_rest = res.profile.hr_rest or trend.REST_HR_DEFAULT
+    best = None
+    for seg in res.segments:
+        f = trend.piece_fitness(seg, slope, hr_rest)
+        if f:
+            seg.metrics.update(f)
+            if best is None or seg.duration_s > best[0]:
+                best = (seg.duration_s, f)
+    if best:
+        sm.update({k: v for k, v in best[1].items()})
 
 
 def vo2max_from_2k(seconds: float, weight_kg: float, trained: bool = False) -> float:

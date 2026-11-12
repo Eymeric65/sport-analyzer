@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+from datetime import date
 from pathlib import Path
 
 import markdown as md
@@ -11,10 +12,11 @@ import numpy as np
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from plotly.offline import get_plotlyjs
 
+from ..analysis import trend as T
 from ..analysis.hr import ZONE_NAMES
 from ..analyze import Result
 from . import figures as F
-from .narrative import GLOSSARY, alpha1_insights, breathing_insights, cardio_insights
+from .narrative import GLOSSARY, alpha1_insights, breathing_insights, cardio_insights, trend_insights
 
 HERE = Path(__file__).parent
 TEMPLATES = HERE / "templates"
@@ -109,6 +111,8 @@ def metrics_json(res: Result) -> dict:
             return int(v)
         if isinstance(v, np.bool_):
             return bool(v)
+        if isinstance(v, date):
+            return v.isoformat()
         return v
 
     return clean({
@@ -122,6 +126,8 @@ def metrics_json(res: Result) -> dict:
         ],
         "recommendations": {k: v for k, v in res.recommendations.items() if k in ("actions", "zones", "why_next")}
         | {"next": res.recommendations.get("next", {}).get("name")},
+        # the full plan made after this session: calendar.html shows the latest one and what each day had planned
+        "plan": {k: res.recommendations.get(k) for k in ("why_next", "next", "week", "sessions", "zones")},
         "notes": res.notes,
     })
 
@@ -203,7 +209,13 @@ def render(res: Result, out: Path | None = None) -> Path:
         pre = [x for x in rests if x.duration_s > 20]
         if pre and longest:
             figs["ecg"] = _div(F.ecg_snippets(res, pre[0].t0 + min(40, pre[0].duration_s / 2), (longest.t0 + longest.t1) / 2))
-    figs["progress"] = _div(F.progress(res))
+    mj = metrics_json(res)
+    tr = T.trend_summary(res.history + [mj], s.day, res.goals.cardio_sessions_per_week)
+    today = s.day.isoformat()
+    figs["fitness"] = _div(F.fitness_trend(tr, today))
+    figs["load"] = _div(F.training_load(tr))
+    figs["multiples"] = _div(F.small_multiples(tr, today))
+    since = T.since_last(res.history, mj)[:4]
 
     env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=select_autoescape(["html"]))
     html = env.get_template("report.html").render(
@@ -226,11 +238,12 @@ def render(res: Result, out: Path | None = None) -> Path:
         cards=cards,
         rests=rest_rows,
         has_h10=res.hr1s is not None,
-        progress_prev=[m for m in res.history if m.get("summary", {}).get("watts_at_hr140") is not None],
+        since=since,
         figs=figs,
         insights={"breath": _md(breathing_insights(res)) if res.hr1s is not None else [],
                   "alpha": _md(alpha1_insights(res)) if res.hr1s is not None else [],
-                  "cardio": _md(cardio_insights(res)) if res.hr1s is not None else []},
+                  "cardio": _md(cardio_insights(res)) if res.hr1s is not None else [],
+                  "trend": _md(trend_insights(tr))},
         summary=sm,
         notes=res.notes,
         logo=_logo(),
@@ -239,5 +252,27 @@ def render(res: Result, out: Path | None = None) -> Path:
         plotlyjs=get_plotlyjs(),
     )
     out.write_text(html)
-    (s.path / "claude-metrics.json").write_text(json.dumps(metrics_json(res), indent=1, default=str))
+    (s.path / "claude-metrics.json").write_text(json.dumps(mj, indent=1, default=str))
+    from .progress import render_progress
+
+    render_progress(s.path.parent)
+    from .calendar import render_calendar
+
+    render_calendar(s.path.parent)
     return out
+
+
+def trend_json(res: Result) -> dict:
+    """The arc, for writing coach notes that build on the previous sessions."""
+    mj = metrics_json(res)
+    tr = T.trend_summary(res.history + [mj], res.session.day, res.goals.cardio_sessions_per_week)
+    ld = tr["load"]
+    prev = res.history[-1] if res.history else None
+    return {
+        "since_last": [{k: r.get(k) for k in ("label", "value", "unit", "delta_s", "status", "prev_date", "base_status")}
+                       for r in T.since_last(res.history, mj)],
+        "arc": tr["arc"],
+        "load": {"ctl": round(ld["ctl"], 1), "atl": round(ld["atl"], 1),
+                 "this_week_sessions": ld["weekly"][-1]["sessions"], "goal": ld["goal"]} if ld else None,
+        "previous": {"date": prev["date"], "note": prev.get("_note")} if prev else None,
+    }

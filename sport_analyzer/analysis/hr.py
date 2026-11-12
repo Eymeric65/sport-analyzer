@@ -19,6 +19,8 @@ class Profile:
     hr_max: float | None = None
     sex: str | None = None
     weight_kg: float | None = None
+    anchor_watts: float = 60.0  # the standardised anchor block (fixed workload every session)
+    anchor_spm: int = 20
 
     @property
     def hr_max_est(self) -> float:

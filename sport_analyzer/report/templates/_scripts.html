@@ -1,0 +1,59 @@
+<div id="tooltip" role="tooltip"></div>
+<script>
+(function () {
+  // one floating tooltip for every "?": hover, keyboard focus, or tap
+  const tt = document.getElementById('tooltip');
+  let cur = null;
+  function show(el) {
+    cur = el; tt.textContent = el.dataset.tip; tt.classList.add('on');
+    const r = el.getBoundingClientRect(), w = tt.offsetWidth, h = tt.offsetHeight;
+    const x = Math.min(Math.max(12, r.left + r.width / 2 - w / 2), window.innerWidth - w - 12);
+    let y = r.bottom + 8; if (y + h > window.innerHeight - 8) y = r.top - h - 8;
+    tt.style.left = x + 'px'; tt.style.top = y + 'px';
+  }
+  function hide() { cur = null; tt.classList.remove('on'); }
+  document.querySelectorAll('.tip').forEach(function (el) {
+    el.addEventListener('mouseenter', function () { show(el); });
+    el.addEventListener('mouseleave', hide);
+    el.addEventListener('focus', function () { show(el); });
+    el.addEventListener('blur', hide);
+    el.addEventListener('click', function (e) { e.stopPropagation(); cur === el ? hide() : show(el); });
+  });
+  document.addEventListener('click', hide);
+  window.addEventListener('scroll', hide, { passive: true });
+
+  // Plotly can't read CSS variables: re-ink charts from the brand tokens, and again when the theme changes
+  function theme() {
+    const cs = getComputedStyle(document.documentElement), v = function (n) { return cs.getPropertyValue(n).trim(); };
+    const roles = { hr: v('--c-hr'), watts: v('--c-watts'), spm: v('--c-spm'), breath: v('--c-breath'),
+                    alpha: v('--c-alpha'), other: v('--c-other'), muted: v('--c-muted') };
+    document.querySelectorAll('.plotly-graph-div').forEach(function (gd) {
+      if (!gd.layout) return;
+      const upd = { 'font.color': v('--muted'), 'hoverlabel.bgcolor': v('--paper'), 'hoverlabel.bordercolor': v('--border'),
+                    'hoverlabel.font.color': v('--text'), 'legend.font.color': v('--muted') };
+      Object.keys(gd.layout).forEach(function (k) {
+        if (/^[xy]axis\d*$/.test(k)) { upd[k + '.gridcolor'] = v('--grid'); upd[k + '.linecolor'] = v('--grid'); upd[k + '.tickcolor'] = v('--grid'); }
+      });
+      (gd.layout.annotations || []).forEach(function (a, i) { upd['annotations[' + i + '].font.color'] = v('--faint'); });
+      Plotly.relayout(gd, upd);
+      (gd.data || []).forEach(function (tr, i) {
+        const c = roles[tr.meta]; if (!c) return;
+        const s = {};
+        if (tr.line) s['line.color'] = c;
+        if (tr.marker) {
+          s['marker.color'] = c;
+          if (String(tr.marker.symbol || '').indexOf('thin') >= 0) s['marker.line.color'] = c;
+          else if (tr.marker.line) s['marker.line.color'] = v('--paper');
+        }
+        if (tr.fill) s['fillcolor'] = c + '33';
+        Plotly.restyle(gd, s, [i]);
+      });
+      Plotly.Plots.resize(gd);
+    });
+  }
+  window.addEventListener('load', theme);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', theme);
+  new MutationObserver(theme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  window.addEventListener('resize', function () { document.querySelectorAll('.plotly-graph-div').forEach(function (gd) { Plotly.Plots.resize(gd); }); });
+})();
+</script>

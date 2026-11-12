@@ -413,21 +413,88 @@ def ecg_snippets(res: Result, t_rest: float, t_row: float, span: float = 6.0) ->
     return fig
 
 
-def progress(res: Result) -> go.Figure | None:
-    """Cardio-progress markers across sessions (needs >= 2 sessions with H10 data)."""
-    pts = []
-    for m in res.history + [{"date": res.session.day.isoformat(), "summary": res.summary}]:
-        s = m.get("summary", {})
-        if s.get("watts_at_hr140") is not None:
-            pts.append((m["date"], s.get("watts_at_hr140"), s.get("watts_at_vt1")))
-    if len(pts) < 2:
+def _band(fig, df, role, name, row=1, col=1, today=None):
+    """Kalman level ± 1 SD as a filled band, the level as a line, the raw sessions as dots."""
+    d = [str(x) for x in df["date"]]
+    lo, hi = df["level"] - df["sd"], df["level"] + df["sd"]
+    if len(df) >= 2:
+        fig.add_trace(go.Scatter(x=d, y=lo, mode="lines", line=dict(width=0, color=C[role]), meta=role, showlegend=False,
+                                 hoverinfo="skip"), row=row, col=col)
+        fig.add_trace(go.Scatter(x=d, y=hi, mode="lines", line=dict(width=0, color=C[role]), meta=role, fill="tonexty",
+                                 fillcolor=C[role] + "33", showlegend=False, hoverinfo="skip"), row=row, col=col)
+        fig.add_trace(go.Scatter(x=d, y=df["level"], mode="lines", line=dict(width=2, color=C[role]), meta=role,
+                                 showlegend=False, hovertemplate="trend %{y:.1f}<extra></extra>"), row=row, col=col)
+    sizes = [13 if today and x == today else 8 for x in d]
+    fig.add_trace(go.Scatter(x=d, y=df["value"], mode="markers", meta=role, name=name, showlegend=False,
+                             marker=dict(size=sizes, color=C[role], line=dict(width=1.5, color="#faf7f0")),
+                             hovertemplate="%{x|%d %b}: %{y:.1f}<extra></extra>"), row=row, col=col)
+
+
+def fitness_trend(trend: dict, today: str | None = None) -> go.Figure | None:
+    """The headline: watts at 140 bpm (up = fitter) and HR at the anchor (down = fitter)."""
+    sm = trend.get("smooth", {})
+    rows = [(k, t) for k, t in (("w140", "WATTS AT 140 BPM · higher = fitter"),
+                                ("hr_anchor", "HR AT THE ANCHOR · bpm · lower = fitter")) if k in sm]
+    if not rows:
         return None
-    d, w140, wv = zip(*pts)
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=d, y=w140, mode="lines+markers", name="watts at 140 bpm", meta="watts",
-                             marker=dict(size=9), line=dict(color=C["watts"], width=2)))
-    fig.add_trace(go.Scatter(x=d, y=wv, mode="lines+markers", name="watts at aerobic threshold", meta="other",
-                             marker=dict(size=9, symbol="diamond"), line=dict(color=C["other"], width=2, dash="dot")))
-    fig.update_yaxes(title_text="W")
-    _base(fig, 300, legend=True)
+    fig = make_subplots(rows=len(rows), cols=1, shared_xaxes=True, vertical_spacing=0.14, subplot_titles=[t for _, t in rows])
+    for i, (k, _) in enumerate(rows, start=1):
+        _band(fig, sm[k], "watts" if k == "w140" else "hr", "watts at 140 bpm" if k == "w140" else "HR at anchor", row=i, today=today)
+    fig.update_xaxes(type="date", tickformat="%d %b")
+    _base(fig, 230 * len(rows) + 50)
+    _titles_left(fig, len(rows))
+    fig.update_layout(hovermode="closest")
+    return fig
+
+
+def small_multiples(trend: dict, today: str | None = None) -> go.Figure | None:
+    """Secondary markers on a shared date axis: efficiency, durability, recovery, technique, threshold."""
+    from ..analysis.trend import MARKER
+
+    keys = [k for k in ("ef_net", "decoupling", "hrr60", "m_per_stroke", "vt1_hr") if k in trend.get("smooth", {})]
+    if not keys:
+        return None
+    titles = [f"{MARKER[k].label.upper()} · {MARKER[k].unit} · {'higher' if MARKER[k].better == 'up' else 'lower'} = better"
+              for k in keys]
+    nrow = (len(keys) + 1) // 2
+    fig = make_subplots(rows=nrow, cols=2, shared_xaxes=True, vertical_spacing=0.2 / max(1, nrow - 1) if nrow > 1 else 0.1,
+                        horizontal_spacing=0.1, subplot_titles=titles)
+    for i, k in enumerate(keys):
+        _band(fig, trend["smooth"][k], "hr" if k == "hrr60" else "watts", MARKER[k].label, row=i // 2 + 1, col=i % 2 + 1, today=today)
+    fig.update_xaxes(type="date", tickformat="%d %b")
+    _base(fig, 190 * nrow + 50)
+    for i, ann in enumerate(fig.layout.annotations[:len(keys)]):  # left-align each title on its own column
+        dom = fig.layout[f"xaxis{i + 1 if i else ''}"].domain
+        ann.update(x=dom[0], xanchor="left", font=dict(size=10, family=MONO))
+    fig.update_layout(hovermode="closest")
+    return fig
+
+
+def training_load(trend: dict) -> go.Figure | None:
+    """Fitness (CTL) and fatigue (ATL) curves, then weekly minutes by zone with the session count."""
+    ld = trend.get("load") or {}
+    if not ld:
+        return None
+    daily, weekly = ld["daily"], ld["weekly"]
+    fig = make_subplots(rows=2, cols=1, vertical_spacing=0.17,
+                        subplot_titles=["FITNESS (CTL, 42 d, solid) AND FATIGUE (ATL, 7 d, dotted) · TRIMP per day",
+                                        f"MINUTES PER WEEK BY HR ZONE · sessions / goal of {ld['goal']}"])
+    d = [str(x) for x in daily["date"]]
+    fig.add_trace(go.Scatter(x=d, y=daily["ctl"], mode="lines", name="fitness (CTL)", meta="watts",
+                             line=dict(color=C["watts"], width=2.5), hovertemplate="fitness %{y:.1f}<extra></extra>"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=d, y=daily["atl"], mode="lines", name="fatigue (ATL)", meta="hr",
+                             line=dict(color=C["hr"], width=1.5, dash="dot"), hovertemplate="fatigue %{y:.1f}<extra></extra>"), row=1, col=1)
+    wk = [str(w["week"]) for w in weekly]
+    for z in range(5):
+        fig.add_trace(go.Bar(x=wk, y=[w["zones_min"][z] for w in weekly], name=ZONE_NAMES[z], marker_color=ZONE_COLORS[z],
+                             hovertemplate=ZONE_NAMES[z] + " %{y:.0f} min<extra></extra>", showlegend=False), row=2, col=1)
+    for x, w in zip(wk, weekly):
+        fig.add_annotation(x=x, y=sum(w["zones_min"]), yshift=10, text=f"{w['sessions']}/{ld['goal']}", showarrow=False,
+                           font=dict(family=MONO, size=10, color=C["watts"] if w["sessions"] >= ld["goal"] else C["muted"]),
+                           row=2, col=1)
+    fig.update_layout(barmode="stack", bargap=0.35)
+    fig.update_xaxes(type="date", tickformat="%d %b")
+    fig.update_yaxes(title_text="min", row=2, col=1)
+    _base(fig, 470)
+    _titles_left(fig, 2)
     return fig

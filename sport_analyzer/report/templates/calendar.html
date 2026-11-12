@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training calendar</title>
+{% include "_style.html" %}
+</head>
+<body>
+{% macro tip(key) -%}{% if key and tips.get(key) %}<button class="tip" type="button" aria-label="What does this mean?" data-tip="{{ tips[key] }}">?</button>{% endif %}{%- endmacro %}
+{% set page = 'calendar' %}
+<main>
+<div class="masthead">
+  <div class="brand">{{ logo | safe }}<span>Eymeric · training log</span></div>
+  <div class="issue">PLAN FROM {{ cal.last.isoformat() }}</div>
+</div>
+{% include "_nav.html" %}
+
+<header class="hero">
+  <p class="eyebrow v">Rowing · what's done, what's next</p>
+  <h1>Calendar</h1>
+  <div class="goal"><p class="eyebrow">Objective</p><p>{{ goal.headline }} · {{ goal.cardio_sessions_per_week }} cardio sessions a week, about 80 % easy and 20 % hard.</p></div>
+</header>
+
+{% if plan and plan.next %}{% set n = plan.next %}
+<section id="next">
+  <div class="sec-head"><h2>Next session</h2><span class="idx">01 · PRESCRIPTION</span></div>
+  <p class="lede">{{ plan.why_next }}</p>
+  <div class="rx">
+    <div class="rx-head"><h3>{{ n.name }} · {{ n.minutes }} min</h3><span class="tag">{{ n.tag }}</span></div>
+    <div class="rx-body table-wrap"><table>
+      <tr><th>Block</th><th>Duration</th><th>Intensity</th><th>Rate</th></tr>
+      {% for b in n.blocks %}<tr><td>{{ b[0] }}</td><td>{{ b[1] }}</td><td>{{ b[2] }}</td><td>{{ b[3] }}</td></tr>{% endfor %}
+    </table>
+    <p class="cue">{{ n.cue }}</p><p class="ok">{{ n.success }}</p></div>
+  </div>
+  {% if plan.zones %}{% set z = plan.zones %}
+  <div class="zones-mini">
+    <div class="zm easy"><div class="l">Easy · 80 % of time {{ tip('vt1') }}</div><div class="v">≤ {{ z.easy_hr[1] }} bpm</div>
+      <div class="s">{% if z.easy_w %}≈ {{ z.easy_w[0] }}–{{ z.easy_w[1] }} W · {% endif %}below the aerobic threshold ({{ '%.0f' % z.vt1_hr }} bpm, {{ z.vt1_src }})</div></div>
+    <div class="zm grey"><div class="l">Grey zone · avoid {{ tip('grey') }}</div><div class="v">{{ z.grey_hr[0] }}–{{ z.grey_hr[1] }} bpm</div>
+      <div class="s">tiring, and a weaker cardio stimulus for its cost</div></div>
+    <div class="zm hard"><div class="l">Hard · 20 % of time</div><div class="v">{{ z.hard_hr[0] }}–{{ z.hard_hr[1] }} bpm</div>
+      <div class="s">90–95 % HRmax, in 4-min intervals</div></div>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+<section id="calendar">
+  <div class="sec-head"><h2>Done and planned</h2><span class="idx">02 · CALENDAR</span></div>
+  <p class="lede">Filled days are sessions you rowed: click one to open its report. Dashed days are the plan made after your latest session ({{ cal.last.strftime('%-d %b') }}).
+  It is rebuilt every time you add a session, so it always adapts to what you actually did.</p>
+  <div class="cal">
+    {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}<div class="hd">{{ d }}</div>{% endfor %}<div class="hd">Week</div>
+    {% for w in cal.weeks %}
+      {% if w.month %}<div class="mrow">{{ w.month }}</div>{% endif %}
+      {% for c in w.days %}
+      <div class="cell{% if c.new_month %} m1{% endif %}{% if not c.done and not c.plan %} empty{% endif %}" data-date="{{ c.date.isoformat() }}">
+        <div class="dn">{{ c.label }}</div>
+        {% for s in c.done %}<a class="s-done {{ s.kind }}" href="{{ s.dir }}/claude-report.html"><b>{{ s.label }}</b>
+          <span>{{ s.work }} · {{ '%.1f' % s.km }} km{% if s.trimp %} · load {{ '%.0f' % s.trimp }}{% endif %}</span></a>{% endfor %}
+        {% if c.plan %}{% set p = c.plan %}
+        <a class="s-plan {{ p.type }}{% if not c.future %} past{% endif %}" href="{% if p.type in plan.sessions %}#rx-{{ p.type }}{% else %}#calendar{% endif %}"><b>{{ p.name }}</b>
+          <span>{{ p.tag }}{% if p.minutes %} · {{ p.minutes }}′{% endif %}</span></a>{% endif %}
+      </div>
+      {% endfor %}
+      <div class="wk{% if w.n >= w.goal %} met{% endif %}">{% if w.n or not w.future %}<b>{{ w.n }}/{{ w.goal }}</b><span>{{ '%.1f' % w.km }} km</span>{% endif %}</div>
+    {% endfor %}
+  </div>
+</section>
+
+{% if plan and plan.sessions %}
+<section id="recipes">
+  <div class="sec-head"><h2>Session recipes</h2><span class="idx">03 · HOW TO</span></div>
+  {% for key, s in plan.sessions.items() %}
+  <div class="rx" id="rx-{{ key }}" style="margin-bottom:14px">
+    <div class="rx-head"><h3>{{ s.name }} · {{ s.minutes }} min</h3><span class="tag">{{ s.tag }}</span></div>
+    <div class="rx-body table-wrap"><table>
+      <tr><th>Block</th><th>Duration</th><th>Intensity</th><th>Rate</th></tr>
+      {% for b in s.blocks %}<tr><td>{{ b[0] }}</td><td>{{ b[1] }}</td><td>{{ b[2] }}</td><td>{{ b[3] }}</td></tr>{% endfor %}
+    </table>
+    <p class="cue">{{ s.cue }}</p><p class="ok">{{ s.success }}</p></div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<footer class="colophon">{{ logo | safe }}<div><div class="name">Eymeric Chauchat</div>
+  <div class="imp">SPORT-ANALYZER · CALENDAR · GENERATED {{ generated.isoformat() }}</div></div></footer>
+</main>
+<script>
+// highlight the real today (the page may be opened days after it was generated)
+(function () {
+  var t = new Date(), iso = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+  var c = document.querySelector('.cell[data-date="' + iso + '"]'); if (c) { c.classList.add('today'); c.classList.remove('empty'); }
+})();
+</script>
+{% include "_scripts.html" %}
+</body>
+</html>

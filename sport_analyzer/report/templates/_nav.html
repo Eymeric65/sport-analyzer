@@ -1,0 +1,5 @@
+<nav class="nav" aria-label="Training log">
+  <a href="{{ nav_base }}calendar.html"{% if page == 'calendar' %} aria-current="page"{% endif %}>Calendar</a>
+  <a href="{{ nav_base }}progress.html"{% if page == 'progress' %} aria-current="page"{% endif %}>Progress</a>
+  {% if latest %}<a href="{{ nav_base }}{{ latest }}/claude-report.html"{% if page == 'session' %} aria-current="page"{% endif %}>Latest session</a>{% endif %}
+</nav>

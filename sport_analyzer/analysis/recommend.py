@@ -120,6 +120,18 @@ def recommend(res) -> dict:
                    "(5 s per breath) for 60 s, then start rowing. Note it in brief.md (“paced 12”).",
         })
 
+    # --- 5. the anchor block: the one habit that makes every session comparable -----------
+    if not sm.get("hr_anchor"):
+        aw = int(prof.anchor_watts)
+        actions.insert(0, {
+            "title": f"Open every session with the {aw} W anchor",
+            "why": "Your sessions vary (easy, intervals, rows with your wife), so their numbers can't be lined up directly. "
+                   "One identical block at the start of each one gives a clean point every time: the HR it costs you. "
+                   "Fixed-workload HR is the most practical day-to-day fitness marker in the monitoring research.",
+            "how": f"Row 6 min at a flat {aw} W and {prof.anchor_spm} spm as its own PM5 piece, then sit still for 60 s before going on. "
+                   f"Over the weeks, the HR at minute 6 should fall: that is the line in the Progress section.",
+        })
+
     # --- next session + week ----------------------------------------------------------
     hard_today = _was_hard(sm.get("zones_s"), prof.hr_max_est, prof.bounds(), sm.get("work_s", 0)) or any(
         (s.metrics.get("hr_max") or 0) > 0.88 * prof.hr_max_est for s in ex)
@@ -151,14 +163,18 @@ def _session_library(z, res, lo_min: int, hi_min: int) -> dict:
     bursts = [s for s in res.segments if s.kind == "exercise" and s.duration_s <= 180 and s.metrics.get("watts_steady_avg")]
     burst_w = np.median([s.metrics["watts_steady_avg"] for s in bursts]) if bursts else None
     iw = f"{_r5(0.75 * burst_w)}–{_r5(0.85 * burst_w)} W" if burst_w else "a hard but sustainable effort"
-    main_easy = max(25, hi_min - 15)
+    main_easy = max(25, hi_min - 18)
+    aw, aspm = int(res.profile.anchor_watts), res.profile.anchor_spm
+    # the same fixed block every session = a comparable fitness point every session (see analysis/trend.py)
+    anchor = ("Anchor (own PM5 piece)", "6 min + 1 min still", f"exactly {aw} W, flat · then sit still 60 s", f"{aspm} spm")
     return {
         "easy": {
             "name": "Aerobic base",
             "tag": "EASY · Z2",
             "minutes": hi_min,
             "blocks": [
-                ("Warm-up ramp", "10 min", f"3 + 3 + 4 min, rising to ≈ {z['easy_w'][0]} W" if z and z.get("easy_w") else "3 + 3 + 4 min, rising gently", "18–20 spm"),
+                anchor,
+                ("Warm-up ramp", "4 min", f"rising to ≈ {z['easy_w'][0]} W" if z and z.get("easy_w") else "rising gently", "18–20 spm"),
                 ("Steady row", f"{main_easy} min", f"HR ≤ {ecap} bpm (≈ {ew})", "20 spm, long strokes"),
                 ("Cool-down", "5 min", "very easy", "18 spm"),
             ],
@@ -168,9 +184,10 @@ def _session_library(z, res, lo_min: int, hi_min: int) -> dict:
         "vo2": {
             "name": "VO2max intervals 4×4",
             "tag": "HARD · Z5",
-            "minutes": 50,
+            "minutes": 52,
             "blocks": [
-                ("Warm-up ramp", "12 min", f"easy, then 2 × 20 s pick-ups", "20 spm"),
+                anchor,
+                ("Warm-up ramp", "5 min", "easy, then 2 × 20 s pick-ups", "20 spm"),
                 ("4 × 4 min ON", "16 min", f"≈ {iw}, HR reaching {hard[0]}–{hard[1]} bpm by minute 3", "22–24 spm"),
                 ("3 min easy between", "9 min", f"≈ {ew}, keep moving", "18–20 spm"),
                 ("Cool-down", "8 min", "very easy", "18 spm"),
@@ -182,9 +199,9 @@ def _session_library(z, res, lo_min: int, hi_min: int) -> dict:
         "step": {
             "name": "Threshold step test",
             "tag": "TEST · RAMP",
-            "minutes": 40,
+            "minutes": 42,
             "blocks": [
-                ("Warm-up", "5 min", "very easy", "20 spm"),
+                anchor,
                 ("Steps of 3 min, no rest", "24 min", "40 → 50 → 60 → 70 → 80 → 90 → 100 → 110 W, stop at the step you can't finish", "20 spm, fixed"),
                 ("Cool-down", "10 min", "very easy", "18 spm"),
             ],
@@ -197,7 +214,7 @@ def _session_library(z, res, lo_min: int, hi_min: int) -> dict:
             "tag": "EASY · SKILL",
             "minutes": lo_min + 5,
             "blocks": [
-                ("Warm-up", "8 min", "easy", "18–20 spm"),
+                anchor,
                 ("Drills: legs only → legs+back → full", "3 × 4 min", f"HR ≤ {ecap}", "18 spm"),
                 ("Pause drill (pause at arms-away)", "3 × 3 min", f"HR ≤ {ecap}", "18–20 spm"),
                 ("Steady, focus on length", f"{max(10, lo_min - 25)} min", f"HR ≤ {ecap}, aim ≥ 10 m/stroke", "20 spm"),

@@ -45,6 +45,18 @@ GLOSSARY = {
                 "As you get fitter it shifts right: more watts at the same HR.",
     "vo2max": "Estimated maximal oxygen uptake, from Concept2's 2k formula with your weight. It is the ceiling of the cardio engine: "
               "~40–45 for an untrained young man, 60–70 for trained rowers. Raised mostly by the hard 4×4 intervals.",
+    "w140": "Watts you produce at 140 bpm. Taken from the HR–power line when a session has several powers, otherwise "
+            "projected from one steady piece (minutes 5 to half-way) along your own HR-power slope. Higher = a bigger aerobic engine. "
+            "Day-to-day noise is about ±5 %.",
+    "hr_anchor": "Heart rate at minute 6 of the anchor block (6 min at a fixed 60 W, 20 spm, at the start of each session). Same work, so "
+                 "a lower HR means the heart pumps more per beat. This is the cleanest session-to-session fitness marker; noise is about ±3 % "
+                 "(sleep, heat, coffee).",
+    "ef_net": "Efficiency factor: steady watts divided by heartbeats above a 70 bpm reference. Like TrainingPeaks' EF, it rises "
+              "as the aerobic engine and the technique improve.",
+    "ctl": "Fitness (CTL) is the 42-day average of daily TRIMP, and fatigue (ATL) the 7-day one (Banister's model). Fitness rising "
+           "slowly and steadily is the goal. When fatigue sits well above fitness, an easy day pays off.",
+    "trend": "The line is a Kalman-filtered trend: it follows your sessions but discounts single-day noise, and the band is its "
+             "uncertainty (±1 SD). A change only counts as real when it is bigger than the marker's normal day-to-day noise.",
     "grey": "The 'grey zone' (between VT1 and ~88 % HRmax): hard enough to be tiring, not hard enough to push VO2max. "
             "Beginners spend too much time here; the best cardio programs mostly avoid it.",
 }
@@ -144,3 +156,49 @@ def cardio_insights(res) -> list[str]:
         out.append(f"In the short bursts, HR needed ~{np.mean(t63):.0f} s to cover 63 % of its rise. "
                    "A 1-min effort is over before HR catches up, so pace short efforts by watts or feel, and use HR for efforts of 3 min or more.")
     return out
+
+
+def trend_insights(trend: dict) -> list[str]:
+    """Plain-language reading of the arc, honest about noise and the number of points."""
+    from ..analysis.trend import MARKER
+
+    out, steady = [], []
+    arc = trend.get("arc", {})
+    for k in ("w140", "hr_anchor", "ef_net", "m_per_stroke", "decoupling", "hrr60", "vt1_hr"):
+        a = arc.get(k)
+        if not a:
+            continue
+        mk = MARKER[k]
+        f = mk.fmt
+        move = f"from {f.format(a['first'])} to {f.format(a['last'])} {mk.unit} since {_date_s(a['since'])} ({a['n']} sessions)"
+        if a["status"] == "better":
+            out.append(f"**{mk.label}: a real gain**, {move}. That is beyond day-to-day noise.")
+        elif a["status"] == "lower":
+            out.append(f"**{mk.label}** has eased {move}. Worth watching, but sleep, heat and the session mix move it too.")
+        else:
+            steady.append((mk, a))
+    if steady:
+        few = min(a["n"] for _, a in steady) < 6
+        items = ", ".join(f"{mk.label[0].lower() + mk.label[1:] if not mk.label.startswith('HR') else mk.label} ({mk.fmt.format(a['first'])} → {mk.fmt.format(a['last'])} {mk.unit})" for mk, a in steady)
+        out.append(f"**Holding steady, within day-to-day noise:** {items}. "
+                   + ("With this few points (and a 10-day break in October) the bands are still wide: "
+                      "a real trend usually shows after 4–6 weeks of regular sessions." if few else ""))
+    if "hr_anchor" not in trend.get("smooth", {}):
+        out.append("**No anchor points yet.** Starting each session with the same 6-min anchor block will give the cleanest trend line here.")
+    ld = trend.get("load") or {}
+    if ld:
+        wk = [w for w in ld["weekly"] if w["sessions"]][-1:]  # the last week with rowing
+        if wk:
+            w = wk[0]
+            share = f", {w['easy_share'] * 100:.0f} % of it below 80 % HRmax" if w.get("easy_share") is not None else ""
+            out.append(f"Week of {w['week']:%d %b}: **{w['sessions']} of {ld['goal']}** planned cardio sessions, "
+                       f"{w['minutes']:.0f} min of rowing{share}.")
+        if ld["atl"] > 1.3 * ld["ctl"] and ld["ctl"] > 5:
+            out.append("Fatigue (7-day load) is well above fitness right now: recent days were big ones, so the next easy day is earning its keep.")
+    return out
+
+
+def _date_s(iso: str) -> str:
+    from datetime import date
+
+    return f"{date.fromisoformat(iso):%-d %b}"
