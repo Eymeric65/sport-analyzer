@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nutrition log</title>
+{% include "_style.html" %}
+{% if plotlyjs %}<script>{{ plotlyjs | safe }}</script>{% endif %}
+</head>
+<body>
+{% macro tip(key) -%}{% if key and tips.get(key) %}<button class="tip" type="button" aria-label="What does this mean?" data-tip="{{ tips[key] }}">?</button>{% endif %}{%- endmacro %}
+<main>
+<div class="masthead">
+  <div class="brand">{{ logo | safe }}<span>Eymeric · training log</span></div>
+  <div class="issue">FUEL · {{ generated.isoformat() }}</div>
+</div>
+{% set page = 'nutrition' %}{% include "_nav.html" %}
+
+<header class="hero">
+  <p class="eyebrow v">Food · calories in, calories out</p>
+  <h1>Fuel for the engine</h1>
+  {% if not body %}
+  <div class="goal"><p class="eyebrow">Set-up needed</p>
+    <p>Add <code>height_cm</code>, <code>weight_kg</code> and <code>age</code> to <code>profile.yaml</code> to get your calorie budget.</p></div>
+  {% else %}
+  <div class="goal"><p class="eyebrow">Objective</p>
+    <p>{{ goal.headline.rstrip('.') }}. On the side: lose a little, about {{ '%.2f' % rate }} kg a week
+    ({{ '%.0f' % deficit }} kcal/day under what you burn){% if goal.weight_target_kg %}, towards {{ goal.weight_target_kg }} kg{% endif %},
+    while keeping the hard sessions fuelled.</p></div>
+  <div class="kpis" style="margin-top:14px">
+    <div class="kpi"><div class="l">Today's target {{ tip('kcal_target') }}</div><div class="v">{{ '%.0f' % today.target }}</div>
+      <div class="s">kcal · {% if today.sessions %}rowing day{% if today.hard %}, hard: smaller deficit{% endif %}{% else %}rest day{% if typical %} · +{{ '%.0f' % typical }} if you row easy{% endif %}{% endif %}</div></div>
+    <div class="kpi"><div class="l">Protein {{ tip('protein') }}</div><div class="v">{{ '%.0f' % protein_target }} g</div>
+      <div class="s">a day · {{ '%.1f' % (protein_target / body.weight_kg) }} g per kg</div></div>
+    <div class="kpi"><div class="l">Basal (BMR) {{ tip('bmr') }}</div><div class="v">{{ '%.0f' % body.bmr }}</div>
+      <div class="s">kcal · lying still all day</div></div>
+    <div class="kpi"><div class="l">Everyday burn {{ tip('everyday') }}</div><div class="v">{{ '%.0f' % body.everyday }}</div>
+      <div class="s">kcal · BMR × {{ body.activity_factor }}, no training</div></div>
+    {% if week %}<div class="kpi"><div class="l">Last 7 days {{ tip('balance') }}</div><div class="v">{{ '%+.0f' % week.balance }}</div>
+      <div class="s">kcal/day vs burnt · {{ week.n }} logged days · ≈ {{ '%+.2f' % week.kg_per_week }} kg/week</div></div>{% endif %}
+    {% if weight_now %}<div class="kpi"><div class="l">Last weigh-in</div><div class="v">{{ '%.1f' % weight_now[1] }} kg</div>
+      <div class="s">{{ weight_now[0].strftime('%-d %b') }}</div></div>{% endif %}
+  </div>
+  {% endif %}
+</header>
+
+{% if body %}
+<section id="today">
+  <div class="sec-head"><h2>Today's budget</h2><span class="idx">01 · TODAY</span></div>
+  <div class="panel table-wrap"><table class="log">
+    <tr><td>Basal (BMR)</td><td class="n">{{ '%.0f' % today.bmr }} kcal</td><td class="note">Mifflin–St Jeor from {{ body.weight_kg }} kg, {{ body.height_cm|int }} cm, {{ body.age }} y</td></tr>
+    <tr><td>Everyday activity</td><td class="n">+{{ '%.0f' % (today.everyday - today.bmr) }} kcal</td><td class="note">walking, standing, digesting (factor {{ body.activity_factor }} in profile.yaml)</td></tr>
+    <tr><td>Rowing</td><td class="n">+{{ '%.0f' % today.rowing }} kcal</td><td class="note">{% if today.sessions %}from the flywheel work{% for s in today.sessions %}{% if s.kcal_hr %} · HR estimate {{ '%.0f' % s.kcal_hr }} gross{% endif %}{% endfor %}{% else %}no session logged yet today{% endif %}</td></tr>
+    {% if today.extra %}<tr><td>Other exercise</td><td class="n">+{{ '%.0f' % today.extra }} kcal</td><td class="note">{{ today.extra_note }}</td></tr>{% endif %}
+    <tr><td>Deficit</td><td class="n">−{{ '%.0f' % today.deficit }} kcal</td><td class="note">{% if today.hard %}trimmed on a hard day so the intervals stay strong{% else %}for {{ '%.2f' % rate }} kg/week{% endif %}</td></tr>
+    <tr class="today"><td><strong>Eat about</strong></td><td class="n"><strong>{{ '%.0f' % today.target }} kcal</strong></td>
+      <td class="note">{% if today.kcal is not none %}logged so far: {{ '%.0f' % today.kcal }} kcal{% if today.protein %}, {{ '%.0f' % today.protein }} g protein{% endif %}{% else %}nothing logged yet{% endif %}</td></tr>
+  </table></div>
+</section>
+
+<section id="balance">
+  <div class="sec-head"><h2>Calories in and out</h2><span class="idx">02 · BALANCE</span></div>
+  {% if insights %}<ul class="insights">{% for i in insights %}<li>{{ i | safe }}</li>{% endfor %}</ul>{% endif %}
+  {% if figs.balance %}<div class="panel">{{ figs.balance | safe }}</div>
+  <p class="fig-cap">Faded bars = days only partly logged (left out of the 7-day average). Burnt = everyday burn + rowing; target = burnt − deficit {{ tip('balance') }}.</p>
+  {% else %}<p class="lede">No food logged yet. Write a note per day in Joplin (<em>Food log</em> notebook, titled YYYY-MM-DD) and Claude turns it into <code>{{ food_dir }}</code>.</p>{% endif %}
+</section>
+
+<section id="body">
+  <div class="sec-head"><h2>Weight</h2><span class="idx">03 · BODY</span></div>
+  {% if figs.body %}<div class="panel">{{ figs.body | safe }}</div>
+  <p class="fig-cap">Weigh-ins from the food log. A single reading moves ±1 kg with water and food, so trust the line, not a dot.</p>
+  {% else %}<p class="lede">No scale, no problem: add <code>weight_kg</code> (same scale, morning if possible) or <code>waist_cm</code> to a day's note now and then. From three weigh-ins the trend line appears.</p>{% endif %}
+</section>
+
+<section id="log">
+  <div class="sec-head"><h2>Every day</h2><span class="idx">04 · LOG</span></div>
+  <div class="panel table-wrap"><table class="log">
+    <tr><th>Date</th><th class="n">Eaten</th><th class="n">Target</th><th class="n">Burnt</th><th class="n">Protein</th><th>Rowing</th><th>Meals</th></tr>
+    {% for r in rows %}<tr class="{{ 'today' if r.date == generated }}">
+      <td>{{ r.date.strftime('%a %d %b') }}</td>
+      <td class="n">{{ num(r.kcal) }}{% if r.kcal is not none and not r.complete %}<br><span class="muted">partial</span>{% endif %}</td>
+      <td class="n">{{ num(r.target) }}</td><td class="n">{{ num(r.tdee) }}</td>
+      <td class="n">{{ num(r.protein, suffix=' g') }}</td>
+      <td>{% for s in r.sessions %}<a href="{{ s.dir }}/claude-report.html">+{{ num(s.kcal) }}</a>{% if not loop.last %} · {% endif %}{% endfor %}{% if r.hard %} <span class="muted">· hard</span>{% endif %}</td>
+      <td class="note">{% for m in r.meals %}<strong>{{ m['name'] }}</strong> {{ m['items'] }} <span class="muted">{{ num(m['kcal']) }}</span>{% if not loop.last %} · {% endif %}{% endfor %}{% if r.note %}<br>{{ r.note }}{% endif %}</td></tr>{% endfor %}
+  </table></div>
+</section>
+{% endif %}
+
+<footer class="colophon">{{ logo | safe }}<div><div class="name">Eymeric Chauchat</div>
+  <div class="imp">SPORT-ANALYZER · NUTRITION · GENERATED {{ generated.isoformat() }}</div></div></footer>
+</main>
+{% include "_scripts.html" %}
+</body>
+</html>

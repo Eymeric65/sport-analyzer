@@ -18,9 +18,22 @@ def main(argv=None) -> None:
     ap.add_argument("--json", action="store_true", help="print the metrics JSON (for writing coach notes)")
     ap.add_argument("--all", action="store_true",
                     help="treat each path as the folder holding YYYYMMDD sessions and re-render all of them, oldest first")
+    ap.add_argument("--pages", action="store_true",
+                    help="only re-render calendar, progress and nutrition for the folder holding the sessions "
+                         "(after a new food log, no session to analyse)")
     args = ap.parse_args(argv)
     warnings.filterwarnings("ignore")
     dirs = [d.expanduser() for d in args.sessions]
+    if args.pages:
+        from .report.calendar import render_calendar
+        from .report.nutrition import render_nutrition
+        from .report.progress import render_progress
+
+        for d in dirs:
+            for f in (render_calendar, render_progress, render_nutrition):
+                if out := f(d):
+                    print(f"✓ {out}")
+        return
     if args.all:
         dirs = [x for d in dirs for x in sorted(d.iterdir()) if x.is_dir() and re.fullmatch(r"\d{8}", x.name)]
     for d in dirs:

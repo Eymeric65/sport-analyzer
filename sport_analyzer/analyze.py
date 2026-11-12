@@ -10,7 +10,7 @@ import pandas as pd
 import yaml
 
 from .align import align_pieces
-from .analysis import cardio, ecg, hr as hrmod, hrv, respiration, rowing, trend
+from .analysis import cardio, ecg, energy, hr as hrmod, hrv, respiration, rowing, trend
 from .history import load_history
 from .io.goals import Goals, load_goals
 from .io.session import Session, load_session
@@ -54,7 +54,7 @@ def load_profile(path: Path | None = None) -> hrmod.Profile:
     if not path.exists():
         return hrmod.Profile()
     d = yaml.safe_load(path.read_text()) or {}
-    keys = ("age", "hr_rest", "hr_max", "sex", "weight_kg", "anchor_watts", "anchor_spm")
+    keys = ("age", "hr_rest", "hr_max", "sex", "weight_kg", "height_cm", "activity_factor", "anchor_watts", "anchor_spm")
     return hrmod.Profile(**{k: d[k] for k in keys if d.get(k) is not None})
 
 
@@ -258,6 +258,11 @@ def _session_metrics(res: Result) -> None:
         if s.piece is not None and s.metrics.get("watts_avg"):
             kj += s.metrics["watts_avg"] * s.duration_s / 1000
     sm["work_kj"] = kj
+    body = res.profile.body
+    t = res.hr1s["t"].to_numpy() if res.hr1s is not None else None
+    h = res.hr1s["hr"].to_numpy() if res.hr1s is not None else None
+    spans = [(s.t0, s.t1) for s in ex if s.piece is not None and s.metrics.get("watts_avg")]
+    sm.update(energy.session_energy(kj, sum(b - a for a, b in spans), body, t, h, spans))
     if res.hr1s is not None:
         t, h = res.hr1s["t"].to_numpy(), res.hr1s["hr"].to_numpy()
         pre = res.hr1s[res.hr1s["t"] < (ex[0].t0 if ex else t[-1])]["hr"]

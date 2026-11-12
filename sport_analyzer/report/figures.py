@@ -9,6 +9,8 @@ direct labels.  One measure per y-axis, never dual axes.
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -497,4 +499,72 @@ def training_load(trend: dict) -> go.Figure | None:
     fig.update_yaxes(title_text="min", row=2, col=1)
     _base(fig, 470)
     _titles_left(fig, 2)
+    return fig
+
+
+def energy_balance(rows: list[dict]) -> go.Figure | None:
+    """Daily intake bars against the day's target and total burn, then protein."""
+    logged = [r for r in rows if r["kcal"] is not None]
+    if not logged:
+        return None
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12, row_heights=[0.68, 0.32],
+                        subplot_titles=["KCAL PER DAY · bars = eaten, line = target, dotted = burnt (estimate)",
+                                        "PROTEIN · g per day, line = target"])
+    x = [str(r["date"]) for r in logged]
+
+    edges = [str(datetime.combine(rows[0]["date"], datetime.min.time()) - timedelta(hours=12))] + \
+        [str(datetime.combine(r["date"], datetime.min.time()) + timedelta(hours=12)) for r in rows]
+
+    def step(key):  # value held over each day's full width
+        v = [r[key] for r in rows]
+        return edges, v + [v[-1]]
+    fig.add_trace(go.Bar(x=x, y=[r["kcal"] for r in logged], name="eaten", meta="watts",
+                         marker=dict(color=C["watts"], opacity=[1.0 if r["complete"] else 0.4 for r in logged]),
+                         customdata=[("" if r["complete"] else " (partly logged)") for r in logged],
+                         hovertemplate="eaten %{y:.0f} kcal%{customdata}<extra></extra>"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=step("target")[0], y=step("target")[1], mode="lines", name="target", meta="hr",
+                             line=dict(color=C["hr"], width=2, shape="hv"),
+                             hovertemplate="target %{y:.0f} kcal<extra></extra>"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=step("tdee")[0], y=step("tdee")[1], mode="lines", name="burnt", meta="muted",
+                             line=dict(color=C["muted"], width=1.5, dash="dot", shape="hv"),
+                             hovertemplate="burnt ~%{y:.0f} kcal<extra></extra>"), row=1, col=1)
+    px = [str(r["date"]) for r in logged if r["protein"] is not None]
+    fig.add_trace(go.Bar(x=px, y=[r["protein"] for r in logged if r["protein"] is not None], name="protein", meta="watts",
+                         marker=dict(color=C["watts"]), hovertemplate="protein %{y:.0f} g<extra></extra>"), row=2, col=1)
+    fig.add_trace(go.Scatter(x=step("protein_g")[0], y=step("protein_g")[1], mode="lines", meta="hr", line=dict(color=C["hr"], width=1.5, shape="hv"),
+                             hovertemplate="target %{y:.0f} g<extra></extra>"), row=2, col=1)
+    day_ms = 86_400_000
+    fig.update_traces(width=0.6 * day_ms, selector=dict(type="bar"))
+    lo, hi = rows[0]["date"] - timedelta(hours=12), rows[-1]["date"] + timedelta(hours=12)
+    fig.update_xaxes(type="date", tickformat="%d %b", range=[str(lo), str(hi)],
+                     dtick=day_ms * max(1, round(len(rows) / 10)))
+    fig.update_yaxes(title_text="kcal", rangemode="tozero", row=1, col=1)
+    fig.update_yaxes(title_text="g", rangemode="tozero", row=2, col=1)
+    _base(fig, 440)
+    _titles_left(fig, 2)
+    return fig
+
+
+def body_trend(weighins: list, waists: list, target: float | None = None) -> go.Figure | None:
+    """Occasional weigh-ins with a straight-line trend once there are 3 or more."""
+    if len(weighins) < 2:
+        return None
+    x = [str(d) for d, _ in weighins]
+    y = [float(v) for _, v in weighins]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=x, y=y, mode="markers", name="weigh-in", meta="watts",
+                             marker=dict(color=C["watts"], size=8), hovertemplate="%{y:.1f} kg<extra></extra>"))
+    if len(weighins) >= 3:
+        t = np.array([(d - weighins[0][0]).days for d, _ in weighins], float)
+        if t[-1] > 0:
+            k, b = np.polyfit(t, y, 1)
+            fig.add_trace(go.Scatter(x=[x[0], x[-1]], y=[b, b + k * t[-1]], mode="lines", meta="watts",
+                                     line=dict(color=C["watts"], width=2),
+                                     hovertemplate=f"trend {7 * k:+.2f} kg/week<extra></extra>"))
+    if target:
+        fig.add_hline(y=target, line=dict(color=C["muted"], dash="dot", width=1), exclude_empty_subplots=False,
+                      annotation_text=f"target {target:g} kg", annotation_position="bottom right")
+    fig.update_xaxes(type="date", tickformat="%d %b")
+    fig.update_yaxes(title_text="kg")
+    _base(fig, 260)
     return fig

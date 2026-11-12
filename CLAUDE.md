@@ -26,11 +26,22 @@ They drive `analysis/recommend.py`: the actions, the next-session prescription a
 - **ECG while rowing** is EMG-heavy. The HR-guided R-peak detector plus Kubios correction beats neurokit and the strap's RR, which drops 8–15 % of beats while rowing. DFA-α1 windows with more than 2 % suspicious beats are rejected.
 - **Breathing**: EDR (R-amplitude) is clean at rest. While rowing it locks onto the stroke, so it is reported as coupling, not as a rate. The neural-net EDR (phase 2) should be validated against rest windows or a paced-breathing block.
 
+## Food log (`io/food.py`, `analysis/energy.py`, `report/nutrition.py`)
+Secondary goal: lose a little weight (`goals.md:weight_rate_kg_per_week`, default 0.25; `weight_target_kg` optional) without hurting the cardio. No scale at home.
+1. The user writes meals in plain words in Joplin, notebook *Life Related › Food log*, one note per day titled `YYYY-MM-DD`.
+   A number the user wrote (kcal, grams) wins over an estimate. "done"/"complete" in the note = the day is fully logged.
+2. Read the notes with the Joplin MCP (`search_notes notebook:"Food log"`), estimate each meal (kcal, protein_g, carbs_g, fat_g; typical portions; say so in `note` when a guess is rough)
+   and write `~/Drive/perso/sport/food/YYYY-MM-DD.yaml` (schema in `io/food.py`). Set `complete: false` for a partly logged day. Gym or long walks go in `extra_kcal` (net). Occasional weigh-ins → `weight_kg`, waist → `waist_cm`.
+3. `uv run sport-analyzer ~/Drive/perso/sport/session --pages` re-renders calendar, progress and `nutrition.html` without analysing a session.
+- Energy model: BMR Mifflin–St Jeor × `profile.yaml:activity_factor` (1.4) = everyday burn. Rowing: `0.045 kcal/kg/min + 3.5 × work kcal` (≈20 % gross efficiency at 150 W, ≈13 % at 60 W, Compendium-consistent), minus the everyday rate over the same minutes → `summary.kcal_active`. Keytel HR kcal over the pieces (`kcal_hr`) reads ~2× high on this beginner; it is a cross-check only.
+- Target = everyday + rowing − deficit; on a hard day (> 10 min Z4+) only 40 % of the deficit; never below 1.1 × BMR. Protein 1.8 g/kg.
+- Tone as for coach notes: no guilt over a big day; weekly average, not single days.
+
 ## Continuity (`analysis/trend.py`)
 - Every session starts with the **anchor block**: 6 min at `profile.yaml:anchor_watts` (60 W), 20 spm, as its own PM5 piece, then 60 s still. `hr_anchor` is the HR over minute 5–6, the cleanest fitness marker. Any piece at 60 W ±10 % in minutes 1–6 counts.
 - Each steady piece of 8 min or more (robust power CV < 20 % over min 5 → half-way) gives `steady_watts`/`steady_hr`, then `w140_est`, projected along the pooled personal HR-power slope, and `ef_net`. Pieces with a steady HR above 160 bpm (a 2k test, a race) are skipped.
 - Trends: a local-level Kalman filter + RTS smoother with SWC-based noise (Buchheit). "Real" only when the change beats both the SWC and the band. Load: Banister CTL 42 d / ATL 7 d from TRIMP.
-- Three linked pages: `session/calendar.html` (sessions done + the plan from the latest session's `plan` in its metrics json, recipes, next prescription), `session/progress.html` (trends), and each day's `claude-report.html` (that session only, plus a "Next up → calendar" link). Every run rewrites calendar and progress. `sport-analyzer ~/Drive/perso/sport/session --all` re-renders every session oldest first (needed after metric changes).
+- Four linked pages: `session/nutrition.html` (food log vs targets), `session/calendar.html` (sessions done + the plan from the latest session's `plan` in its metrics json, recipes, next prescription), `session/progress.html` (trends), and each day's `claude-report.html` (that session only, plus a "Next up → calendar" link). Every run rewrites calendar and progress. `sport-analyzer ~/Drive/perso/sport/session --all` re-renders every session oldest first (needed after metric changes).
 - Tests: `uv run python -m pytest` (the venv's `pytest` shebang points to an old repo path).
 
 ## Report design

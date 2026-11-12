@@ -11,6 +11,18 @@ GLOSSARY = {
     "trimp": "Training impulse (Banister): minutes weighted by how hard the heart worked, growing exponentially with intensity. "
              "About 50 = moderate session, 100+ = hard. Useful to compare days and weeks.",
     "energy": "Mechanical work done on the flywheel = average watts × time. Your body burns about 4× this (plus basal) because muscles are about 20–25 % efficient.",
+    "kcal": "Energy this session added to your day: a fixed cost per rowing minute (moving your body on the slide) plus "
+            "~3.5 kcal per kcal of flywheel work, minus what you'd have burnt sitting anyway. The HR estimate (Keytel) is a rougher cross-check over the whole recording. Both are ±15–20 %.",
+    "kcal_target": "Everyday burn + today's rowing − the deficit for your weight goal. On a hard day most of the deficit is "
+                   "dropped so the intervals stay strong. A formula, so ±10 %: the weekly average matters, not one day.",
+    "bmr": "Basal metabolic rate: what you'd burn lying still for 24 h. Mifflin–St Jeor from weight, height, age and sex, "
+           "the most accurate of the standard formulas (within ±10 % for most people).",
+    "everyday": "BMR × an activity factor for everything except training (walking, standing, digesting). 1.4 suits desk work "
+                "with some walking; change activity_factor in profile.yaml if your days are more active.",
+    "protein": "About 1.8 g per kg of body weight a day. In a calorie deficit this keeps the weight you lose on the fat side, "
+               "not the muscle side, and helps recovery between sessions.",
+    "balance": "Average of eaten − burnt over the last 7 fully logged days. 7,700 kcal ≈ 1 kg, so −300 a day ≈ −0.27 kg a week. "
+               "Both sides are estimates: watch the weekly direction, not single days.",
     "vt1": "Aerobic threshold (VT1, first ventilatory threshold): the intensity where breathing first speeds up and lactate starts to rise. "
            "Below it you can go for hours, and this is where ~80 % of cardio training should happen.",
     "alpha1": "DFA α1: how 'fractal' the beat-to-beat rhythm is. ~1.0 and above = relaxed, rich variability. It falls as effort rises: "

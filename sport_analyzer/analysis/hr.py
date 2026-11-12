@@ -19,6 +19,8 @@ class Profile:
     hr_max: float | None = None
     sex: str | None = None
     weight_kg: float | None = None
+    height_cm: float | None = None
+    activity_factor: float = 1.4  # everyday burn = BMR x this, training excluded (desk work + walking)
     anchor_watts: float = 60.0  # the standardised anchor block (fixed workload every session)
     anchor_spm: int = 20
 
@@ -34,6 +36,15 @@ class Profile:
     def method(self) -> str:
         src = "measured" if self.hr_max else (f"Tanaka 208-0.7x{self.age}" if self.age else "default")
         return ("Karvonen (%HR reserve)" if self.hr_rest else "%HRmax") + f", HRmax {self.hr_max_est:.0f} ({src})"
+
+    @property
+    def body(self):
+        """For the energy maths; None until weight, height and age are all in profile.yaml."""
+        from .energy import Body
+
+        if not (self.weight_kg and self.height_cm and self.age):
+            return None
+        return Body(float(self.weight_kg), float(self.height_cm), int(self.age), self.sex or "male", float(self.activity_factor))
 
     def bounds(self) -> list[float]:
         hm = self.hr_max_est
