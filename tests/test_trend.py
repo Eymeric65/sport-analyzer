@@ -37,6 +37,7 @@ def test_piece_fitness_rejects_short_unsteady_or_far():
     assert T.piece_fitness(_seg(_piece(1800, lambda e: rng.uniform(10, 150, len(e)), 150)), 1.0) is None
     far = T.piece_fitness(_seg(_piece(1800, 40, 110)), 1.0)
     assert far is not None and "w140_est" not in far  # 30 bpm away: no projection
+    assert T.piece_fitness(_seg(_piece(540, 145, 188)), 1.0) is None  # a 2k test is not an aerobic marker
 
 
 def test_anchor_detected_at_fixed_watts():
@@ -81,3 +82,14 @@ def test_since_last_first_value_is_baseline():
     assert T.since_last([], a)[0]["status"] == "new"
     assert T.since_last([a], b)[0]["status"] == "noise"  # +1 W < 5 %
     assert T.since_last([a, b], c)[0]["status"] == "better"
+
+
+def test_2k_finish_time_extrapolated_to_2000_m():
+    from sport_analyzer.analyze import _time_at_2000
+
+    p = _piece(535.0, 145, 182)  # _piece rows at 2.5 m/s, every 3 s: last stroke at 1335 m...
+    st = p.strokes.copy()
+    st["distance"] = st["elapsed"] * (1997.0 / st["elapsed"].iloc[-1])  # ...rescaled to end at 1997 m
+    p = C2Piece(result_id="2", path=Path("y.csv"), interval=0, n_intervals=1, strokes=st)
+    v = 1997.0 / st["elapsed"].iloc[-1]
+    assert abs(_time_at_2000(p) - (st["elapsed"].iloc[-1] + 3.0 / v)) < 1e-6

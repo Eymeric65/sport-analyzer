@@ -157,7 +157,7 @@ def render(res: Result, out: Path | None = None) -> Path:
     ]
     if res.hr1s is not None:
         kpis += [
-            ("HR max", num(sm.get("hr_max_session"), suffix=" bpm"), f"{100 * sm['hr_max_session'] / res.profile.hr_max_est:.0f}% of est. HRmax", "hrmax"),
+            ("HR max", num(sm.get("hr_max_session"), suffix=" bpm"), f"{100 * sm['hr_max_session'] / res.profile.hr_max_est:.0f}% of {'HRmax' if res.profile.hr_max else 'est. HRmax'}", "hrmax"),
             ("Load", num(sm.get("trimp")), "TRIMP", "trimp"),
         ]
         if sm.get("hr_at_alpha1_075"):

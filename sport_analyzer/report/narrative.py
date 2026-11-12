@@ -134,7 +134,7 @@ def alpha1_insights(res) -> list[str]:
                        f"HR up to {res.summary.get('hr_max_session') or ok['hr'].max():.0f} bpm), so today can't place the threshold: "
                        "it only says the threshold sits above the HR you reached. That is what an easy day should look like.")
     if hr75:
-        out.append(f"**Aerobic threshold ≈ {hr75:.0f} bpm** ({100 * hr75 / res.profile.hr_max_est:.0f}% of est. HRmax)"
+        out.append(f"**Aerobic threshold ≈ {hr75:.0f} bpm** ({100 * hr75 / res.profile.hr_max_est:.0f}% of {'HRmax' if res.profile.hr_max else 'est. HRmax'})"
                    + (f", which today corresponds to **≈ {wv:.0f} W**." if wv else "."))
     for s in res.segments:
         a = s.metrics.get("alpha1")

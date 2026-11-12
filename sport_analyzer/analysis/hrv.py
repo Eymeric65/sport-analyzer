@@ -12,6 +12,8 @@ import pandas as pd
 
 WINDOW_S = 120.0
 STEP_S = 10.0
+MAX_HR_SLOPE = 5.0  # bpm/min: faster than this, a 2-min window is not stationary
+SUPPORT_BPM = 10.0  # the alpha1 = 0.75 crossing needs windows this close to it
 MAX_ARTEFACT = 0.02  # windows with more suspicious beats than this are flagged unreliable
 
 
@@ -73,11 +75,19 @@ def hr_at_alpha1(df: pd.DataFrame, target: float = 0.75,
     windows where alpha1 is in its informative range (0.3-1.5).
 
     ``spans`` (exercise intervals, in ``t``) restricts the fit to windows centred inside them.
-    Mixing rest windows (alpha1 ~1+) with easy rowing (alpha1 driven down by EMG and stroke
-    coupling) otherwise fits the rest-to-exercise jump and puts the threshold far too low.
+    Mixing rest windows (alpha1 ~1+) with easy rowing otherwise fits the rest-to-exercise jump.
+
+    Windows where HR moves faster than ``MAX_HR_SLOPE`` are dropped: a 2-min window across a fast
+    rise (the start of a 2k, +35 bpm/min) keeps alpha1 ~1 at an already high mean HR and drags the
+    crossing up. The crossing must also have windows within ``SUPPORT_BPM`` of it, otherwise
+    it is a line drawn across a gap (e.g. an anchor at 130 and a 2k at 185), not a measurement.
     """
     from scipy.stats import theilslopes
 
+    df = df.sort_values("t")
+    if len(df) > 2:
+        slope = np.gradient(df["hr"].to_numpy(), df["t"].to_numpy()) * 60
+        df = df[np.abs(slope) <= MAX_HR_SLOPE]
     if spans is not None:
         inside = np.zeros(len(df), bool)
         for a, b in spans:
@@ -92,5 +102,7 @@ def hr_at_alpha1(df: pd.DataFrame, target: float = 0.75,
     hr = float((target - b) / k)
     # only interpolate: a crossing far above the HRs actually reached is a guess, not a measurement
     if hr > d["hr"].max() + 5 or hr < d["hr"].min():
+        return None
+    if (np.abs(d["hr"] - hr) <= SUPPORT_BPM).sum() < 3:
         return None
     return hr

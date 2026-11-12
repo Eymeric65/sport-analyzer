@@ -28,7 +28,7 @@ They drive `analysis/recommend.py`: the actions, the next-session prescription a
 
 ## Continuity (`analysis/trend.py`)
 - Every session starts with the **anchor block**: 6 min at `profile.yaml:anchor_watts` (60 W), 20 spm, as its own PM5 piece, then 60 s still. `hr_anchor` is the HR over minute 5–6, the cleanest fitness marker. Any piece at 60 W ±10 % in minutes 1–6 counts.
-- Each steady piece of 8 min or more (robust power CV < 20 % over min 5 → half-way) gives `steady_watts`/`steady_hr`, then `w140_est`, projected along the pooled personal HR-power slope, and `ef_net`.
+- Each steady piece of 8 min or more (robust power CV < 20 % over min 5 → half-way) gives `steady_watts`/`steady_hr`, then `w140_est`, projected along the pooled personal HR-power slope, and `ef_net`. Pieces with a steady HR above 160 bpm (a 2k test, a race) are skipped.
 - Trends: a local-level Kalman filter + RTS smoother with SWC-based noise (Buchheit). "Real" only when the change beats both the SWC and the band. Load: Banister CTL 42 d / ATL 7 d from TRIMP.
 - Three linked pages: `session/calendar.html` (sessions done + the plan from the latest session's `plan` in its metrics json, recipes, next prescription), `session/progress.html` (trends), and each day's `claude-report.html` (that session only, plus a "Next up → calendar" link). Every run rewrites calendar and progress. `sport-analyzer ~/Drive/perso/sport/session --all` re-renders every session oldest first (needed after metric changes).
 - Tests: `uv run python -m pytest` (the venv's `pytest` shebang points to an old repo path).

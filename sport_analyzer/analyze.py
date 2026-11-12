@@ -227,6 +227,17 @@ def vo2max_from_2k(seconds: float, weight_kg: float, trained: bool = False) -> f
     return y * 1000 / weight_kg
 
 
+def _time_at_2000(piece) -> float:
+    """Finish time of a 2k. The CSV's last stroke lands a few metres short of 2000 m (1997.2 m
+    at 535.4 s for an 8:56 result), so extrapolate at the speed of the last strokes."""
+    st = piece.strokes
+    if piece.distance_m >= 2000 or len(st) < 2:
+        return piece.duration_s
+    tail = st.tail(6)
+    v = (tail["distance"].iloc[-1] - tail["distance"].iloc[0]) / (tail["elapsed"].iloc[-1] - tail["elapsed"].iloc[0])
+    return piece.duration_s + (2000 - piece.distance_m) / v if v > 0 else piece.duration_s
+
+
 def _session_metrics(res: Result) -> None:
     ex = [s for s in res.segments if s.kind == "exercise"]
     sm = res.summary
@@ -235,7 +246,7 @@ def _session_metrics(res: Result) -> None:
         sm["watts_at_vt1_per_kg"] = sm["watts_at_vt1"] / w
     tests = [s for s in ex if s.piece is not None and 1990 <= s.piece.distance_m <= 2010]
     if w and tests:
-        t = min(s.piece.duration_s for s in tests)
+        t = min(_time_at_2000(s.piece) for s in tests)
         sm["test_2k_s"] = t
         # "low training" category for the first months; switch once training is regular (>= 3 months)
         sm["vo2max_2k"] = vo2max_from_2k(t, w, trained=False)

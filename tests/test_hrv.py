@@ -35,3 +35,16 @@ def test_low_alpha1_at_easy_hr_is_not_graded():
     assert alpha1_verdict(0.29, 126, 141)[0] == "doesn't match HR"
     assert alpha1_verdict(0.45, 165, 141)[0] == "above VT2"
     assert alpha1_verdict(1.1, 120, 141)[0] == "easy"
+
+
+def test_fast_hr_rise_and_gaps_give_no_threshold():
+    # anchor: HR 125-135, α1 ~1.1, steady; then a 2k: HR jumps 110 -> 180 in 2 min with α1 still ~1
+    # (window lag), then sits at 182-190 with α1 ~0.4
+    t_a = np.arange(0, 360, 10.0)
+    hr_a = 125 + 10 * t_a / 360
+    t_r = np.arange(400, 520, 10.0)
+    hr_r = 110 + 70 * (t_r - 400) / 120
+    t_s = np.arange(520, 960, 10.0)
+    hr_s = 182 + 8 * (t_s - 520) / 440
+    df = _windows(np.r_[t_a, t_r, t_s], np.r_[hr_a, hr_r, hr_s], np.r_[np.full(len(t_a), 1.1), np.full(len(t_r), 1.0), np.full(len(t_s), 0.4)])
+    assert hr_at_alpha1(df) is None  # no steady windows between 135 and 182: not a measurement
