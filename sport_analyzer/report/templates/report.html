@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training log {{ day.isoformat() }}</title>
+{% include "_style.html" %}
+<script>{{ plotlyjs | safe }}</script>
+</head>
+<body>
+{% macro tip(key) -%}{% if key and tips.get(key) %}<button class="tip" type="button" aria-label="What does this mean?" data-tip="{{ tips[key] }}">?</button>{% endif %}{%- endmacro %}
+<main>
+<div class="masthead">
+  <div class="brand">{{ logo | safe }}<span>Eymeric · training log</span></div>
+  <div class="issue">№ {{ '%02d' % n_session }} · {{ day.isoformat() }}</div>
+</div>
+{% set page = 'session' %}{% set nav_base = '../' %}{% include "_nav.html" %}
+
+<header class="hero">
+  <p class="eyebrow v">Rowing · Concept2{% if has_h10 %} + Polar H10{% endif %}</p>
+  <h1>{{ title }}</h1>
+  <div class="slate"><p class="eyebrow">Your brief</p>{{ brief | safe }}</div>
+  <div class="goal"><p class="eyebrow">Objective</p><p>{{ goal.headline }}</p></div>
+  {% if since %}
+  <div class="since-head"><p class="eyebrow">Since last time {{ tip('trend') }}</p><a href="../progress.html">All sessions →</a></div>
+  <div class="since">
+    {% for r in since %}<div class="kpi {{ r.status }}"><div class="l">{{ r.label }} {{ tip(r.tip) }}</div>
+      <div class="v">{{ r.value }} <small style="font-size:.6em">{{ r.unit }}</small></div>
+      <div class="d">{% if r.delta_s %}{{ r.delta_s }} {{ r.unit }}{% if r.status == 'better' %} ↑ better{% elif r.status == 'lower' %} · lower{% endif %}{% else %}baseline{% endif %}</div>
+      <div class="s">{{ r.note }}</div></div>{% endfor %}
+  </div>
+  {% endif %}
+</header>
+
+{% if rec and rec.actions %}
+<section id="actions">
+  <div class="sec-head"><h2>Do this next</h2><span class="idx">01 · ACTIONS</span></div>
+  <div class="actions">
+  {% for a in rec.actions %}
+    <div class="action"><div class="seal" aria-hidden="true"></div><div>
+      <h3>{{ a.title }}</h3><p>{{ a.why }}</p><p class="how">{{ a.how }}</p></div></div>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if rec and rec.next %}
+<div class="nextup" style="margin-top:20px"><p><span class="eyebrow" style="margin-right:8px">Next up</span><b>{{ rec.next.name }}</b> · {{ rec.next.minutes }} min.
+  {{ rec.why_next }}</p><a href="../calendar.html#next">Prescription &amp; week in the calendar →</a></div>
+{% endif %}
+
+<section id="glance">
+  <div class="sec-head"><h2>Today at a glance</h2><span class="idx">02 · SUMMARY</span></div>
+  <div class="kpis">
+    {% for l, v, s, k in kpis %}<div class="kpi"><div class="l">{{ l }} {{ tip(k) }}</div><div class="v">{{ v }}</div><div class="s">{{ s }}</div></div>{% endfor %}
+  </div>
+  {% if coach_notes %}<div class="coach" style="margin-top:16px"><p class="eyebrow v" style="margin-top:14px">Coach notes</p>{{ coach_notes | safe }}</div>{% endif %}
+</section>
+
+<section id="progress">
+  <div class="sec-head"><h2>Your evolution</h2><span class="idx">03 · TREND</span></div>
+  <p class="lede">Every session adds a point. The line is the trend and the band is its uncertainty {{ tip('trend') }}: single days
+  bounce around with sleep, heat and company, so only changes bigger than that noise are called real.
+  <a href="../progress.html">Open the full progress page →</a></p>
+  {% if insights.trend %}<ul class="insights">{% for i in insights.trend %}<li>{{ i | safe }}</li>{% endfor %}</ul>{% endif %}
+  {% if figs.fitness %}<div class="panel">{{ figs.fitness | safe }}</div>
+  <p class="fig-cap">Big dot = today. Watts at 140 bpm come from the HR–power line when a session has one, otherwise from the steadiest piece {{ tip('w140') }}.
+  The anchor HR {{ tip('hr_anchor') }} needs the 6-min anchor block at the start of the session.</p>{% endif %}
+  {% if figs.load %}<div class="panel" style="margin-top:12px">{{ figs.load | safe }}</div>
+  <p class="fig-cap">Top: your fitness and fatigue curves from the training load {{ tip('ctl') }}. Bottom: minutes rowed per week, coloured by HR zone; the label is sessions done out of your weekly goal.</p>{% endif %}
+  {% if figs.multiples %}<div class="panel" style="margin-top:12px">{{ figs.multiples | safe }}</div>
+  <p class="fig-cap">The supporting markers: efficiency {{ tip('ef_net') }}, durability (decoupling) {{ tip('decoupling') }}, recovery {{ tip('hrr') }}, technique {{ tip('m_stroke') }} and the aerobic threshold {{ tip('vt1') }}.</p>{% endif %}
+</section>
+
+<section id="timeline">
+  <div class="sec-head"><h2>Session timeline</h2><span class="idx">04 · TIMELINE</span></div>
+  <div class="panel">{{ timeline | safe }}</div>
+  <p class="fig-cap">Grey bands = exercises. Hover any line to read the values.{% if has_h10 %} The HR background shows the 5 zones{% if summary.hr_at_alpha1_075 %}, and the dashed line is your aerobic threshold{% endif %}.
+  Stroke rate: the line is the PM5; the hollow dots are the same thing measured independently by the chest strap's accelerometer.{% endif %}</p>
+  {% if has_h10 %}
+  <div class="zones-legend"><span style="--c:transparent">{{ profile.method }}</span> {{ tip('zones') }}
+    {% for n in zone_names %}<span style="--c:{{ zone_colors[loop.index0] }}">{{ n }} {{ zone_bounds[loop.index0] }}–{{ zone_bounds[loop.index] }}</span>{% endfor %}</div>
+  <div class="panel" style="margin-top:12px">{{ session_zones | safe }}</div>
+  {% endif %}
+</section>
+
+<section id="exercises">
+  <div class="sec-head"><h2>Exercise by exercise</h2><span class="idx">05 · DETAIL</span></div>
+  {% for c in cards %}
+  <article class="card">
+    <div class="card-head"><h3>{{ c.label }}</h3><span class="meta">+{{ c.start }} MIN · C2 {{ c.piece }}</span></div>
+    {% if c.checks %}<div class="chips">{% for ch in c.checks %}<span class="chip {{ ch.status }}">{{ ch.text }}</span>{% endfor %}</div>{% endif %}
+    <div class="kpis">
+      {% for l, v, s, k in c.kpis %}<div class="kpi"><div class="l">{{ l }} {{ tip(k) }}</div><div class="v">{{ v }}</div><div class="s">{{ s }}</div></div>{% endfor %}
+    </div>
+    {% if c.comment %}<div class="comment">{{ c.comment | safe }}</div>{% endif %}
+    {% if c.fig %}{{ c.fig | safe }}{% endif %}
+    {% if c.zones %}{{ c.zones | safe }}{% endif %}
+  </article>
+  {% endfor %}
+  {% if rests %}
+  <div class="panel table-wrap"><table>
+    <tr><th>Rest</th><th>Start</th><th>Duration</th><th>HR start → end</th><th>Breathing {{ tip('breath_rate') }}</th><th>DFA α1 {{ tip('alpha1') }}</th></tr>
+    {% for r in rests %}<tr><td>{{ r.label }}</td><td>{{ r.start }} min</td><td>{{ r.dur }}</td><td>{{ r.hr }}</td><td>{{ r.breath }}</td><td>{{ r.alpha1 }}</td></tr>{% endfor %}
+  </table></div>
+  {% endif %}
+</section>
+
+{% if has_h10 %}
+<section id="engine">
+  <div class="sec-head"><h2>The cardio engine</h2><span class="idx">06 · HR × POWER</span></div>
+  <p class="lede">Your objective is more cardio, and this is how it shows up in the data: <b>more watts at the same heart rate</b>.
+  This chart is the baseline every future session is compared against. {{ tip('hr_power') }}</p>
+  <ul class="insights">{% for i in insights.cardio %}<li>{{ i | safe }}</li>{% endfor %}</ul>
+  <div class="panel">{{ figs.hr_power | safe }}</div>
+  <p class="fig-cap">Each dot = 1 minute of a steady piece (first 2 min skipped while HR catches up). Vertical spread inside one piece is drift: same watts, rising HR.</p>
+</section>
+
+<section id="breathing">
+  <div class="sec-head"><h2>Breathing, read from the ECG</h2><span class="idx">07 · RESPIRATION</span></div>
+  <div class="howto">
+    <div><b>How it works {{ tip('edr') }}</b>With each breath the lungs push the heart around a little, so the R-peak height on the chest ECG rises and falls with breathing. Counting those waves gives breaths per minute.</div>
+    <div><b>Cross-checks {{ tip('rsa') }}</b>The heart also speeds up while you breathe in (RSA), and the strap accelerometer feels the chest move. At rest, all three are compared.</div>
+    <div><b>Limit while rowing {{ tip('coupling') }}</b>Each stroke also moves the electrodes at the stroke rate. Breathing usually locks to the stroke, so the two can't be separated: the report shows the lock ratio instead.</div>
+  </div>
+  <ul class="insights">{% for i in insights.breath %}<li>{{ i | safe }}</li>{% endfor %}</ul>
+  <div class="panel">{{ figs.breath_trace | safe }}</div>
+  <p class="fig-cap">The cleanest rest window of the day. Each ▼ is one breath found in the ECG. The lower trace is the RR interval: at low HR it follows the same waves (RSA). At higher HR it mostly shows the slow ~6 /min blood-pressure wave instead.</p>
+  <div class="two" style="margin-top:12px">
+    <div class="panel">{{ figs.breath_rec | safe }}<p class="fig-cap">Breathing rate during each rest, from the end of the effort. As fitness grows, it should come back to baseline faster.</p></div>
+    <div class="panel">{{ figs.coupling | safe }}<p class="fig-cap">While rowing: how often the breathing signal locked at 1 or 2 breaths per stroke.</p></div>
+  </div>
+  {% if figs.spectrum %}<div class="panel" style="margin-top:12px">{{ figs.spectrum | safe }}</div>
+  <p class="fig-cap">Why rowing breathing is uncertain: 32 s from the middle of the longest piece. The chest motion (dashed) is almost pure stroke.
+  Here <b>{{ '%.0f' % (figs.spectrum_share * 100) }}%</b> of the ECG breathing signal's power (filled) sits on the stroke frequency or its multiples, where breathing and electrode motion can't be told apart.
+  The rest (the other peaks) could be breathing that is <i>not</i> locked to the stroke, or noise. The paced-breathing calibration and, later, the neural-net model are how we'll find out.</p>{% endif %}
+  <details><summary>Method &amp; validation</summary>
+  <p>R-peaks: an HR-guided detector (8–25 Hz energy, adaptive threshold) + Kubios artefact correction. EDR = R-peak amplitude, cleaned, band-passed to 5–72 /min, resampled at 4 Hz.
+  Rate = spectral peak over 32-s windows every 5 s, kept only at rest and only when the peak holds > 25 % of the band power.
+  Agreement at rest: EDR vs ACC {{ '%.0f' % (summary.breath_agree_edr_acc * 100) if summary.breath_agree_edr_acc is not none else '–' }}%, EDR vs RSA {{ '%.0f' % (summary.breath_agree_edr_rsa * 100) if summary.breath_agree_edr_rsa is not none else '–' }}%.
+  Next step: a neural-net EDR model scored against a paced-breathing block at the start of each session.</p>
+  </details>
+</section>
+
+<section id="threshold">
+  <div class="sec-head"><h2>Aerobic threshold from HRV</h2><span class="idx">08 · DFA α1</span></div>
+  <div class="howto">
+    <div><b>What α1 is {{ tip('alpha1') }}</b>A measure of how "organised" the tiny beat-to-beat variations are. Relaxed heart: complex, fractal rhythm (α1 ≈ 1). Hard effort: the rhythm turns random (α1 → 0.5).</div>
+    <div><b>Why it matters {{ tip('vt1') }}</b>The crossing of α1 = 0.75 lands close to the lab-measured aerobic threshold (VT1). That is the ceiling for your easy days, measured from your own heart and not from an age formula.</div>
+    <div><b>How to read the charts</b>Blue band = below threshold (good for base training). Stone band = grey zone. Red = above the anaerobic threshold. ✕ = window rejected because the ECG was too noisy to trust.</div>
+  </div>
+  <ul class="insights">{% for i in insights.alpha %}<li>{{ i | safe }}</li>{% endfor %}</ul>
+  <div class="panel">{{ figs.alpha_t | safe }}</div>
+  <p class="fig-cap">α1 over the session (top) against heart rate (bottom). α1 falls toward the grey band as effort rises above the aerobic threshold, and bounces back above 1 at rest. On an easy day it should stay above 0.75 throughout.</p>
+  <div class="panel" style="margin-top:12px">{{ figs.alpha_hr | safe }}</div>
+  <p class="fig-cap">Same windows plotted against HR.{% if summary.hr_at_alpha1_075 %} The red line is where a robust fit through the kept windows crosses α1 = 0.75, your estimated aerobic threshold. Fatigue and ECG noise blur it, and a step test sharpens it.{% else %} No threshold line today: α1 has to actually approach 0.75 for the crossing to be measured, not extrapolated.{% endif %}</p>
+</section>
+
+<section id="quality">
+  <div class="sec-head"><h2>Signal quality</h2><span class="idx">09 · DATA</span></div>
+  <div class="panel">{{ figs.ecg | safe }}</div>
+  <p class="fig-cap">While rowing, chest-muscle activity (EMG) adds noise to the ECG. R-peaks (▼) are still found by an HR-guided detector, and {{ '%.1f' % (summary.ecg_artefact_rate * 100) }}% of beats needed correction.</p>
+  <details><summary>{{ notes | length }} notes on sources, alignment and quality</summary>
+  <ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul></details>
+</section>
+{% else %}
+<section id="quality">
+  <div class="sec-head"><h2>Data notes</h2><span class="idx">DATA</span></div>
+  <p class="lede">No heart-rate recording for this session: the analysis covers the rowing machine only. Wear the H10 to unlock heart rate, breathing, the aerobic threshold and recommendations tuned to your heart.</p>
+  <details><summary>{{ notes | length }} notes</summary><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul></details>
+</section>
+{% endif %}
+
+<footer class="colophon">{{ logo | safe }}<div><div class="name">Eymeric Chauchat</div>
+  <div class="imp">SPORT-ANALYZER · {{ profile.method | upper }} · GENERATED FROM RAW H10 + PM5 DATA</div></div></footer>
+</main>
+{% include "_scripts.html" %}
+</body>
+</html>
