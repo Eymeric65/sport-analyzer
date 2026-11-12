@@ -67,11 +67,22 @@ def rolling_hrv(rr_t: np.ndarray, rr_ms: np.ndarray, raw_beat_t: np.ndarray | No
     return df
 
 
-def hr_at_alpha1(df: pd.DataFrame, target: float = 0.75) -> float | None:
+def hr_at_alpha1(df: pd.DataFrame, target: float = 0.75,
+                 spans: list[tuple[float, float]] | None = None) -> float | None:
     """HR where alpha1 crosses ``target``: robust (Theil-Sen) fit of alpha1 on HR over reliable
-    windows where alpha1 is in its informative range (0.3-1.5)."""
+    windows where alpha1 is in its informative range (0.3-1.5).
+
+    ``spans`` (exercise intervals, in ``t``) restricts the fit to windows centred inside them.
+    Mixing rest windows (alpha1 ~1+) with easy rowing (alpha1 driven down by EMG and stroke
+    coupling) otherwise fits the rest-to-exercise jump and puts the threshold far too low.
+    """
     from scipy.stats import theilslopes
 
+    if spans is not None:
+        inside = np.zeros(len(df), bool)
+        for a, b in spans:
+            inside |= (df["t"].to_numpy() >= a) & (df["t"].to_numpy() <= b)
+        df = df[inside]
     d = df[df["reliable"] & (df["alpha1"] > 0.3) & (df["alpha1"] < 1.5)]
     if len(d) < 10 or d["hr"].max() - d["hr"].min() < 20:
         return None

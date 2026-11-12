@@ -38,7 +38,7 @@ def personal_zones(res) -> dict:
     z = {
         "vt1_hr": vt1,
         "vt1_src": vt1_src,
-        "easy_hr": (_r5(0.6 * hm), easy_hi),
+        "easy_hr": (min(_r5(0.6 * hm), easy_hi - 10), easy_hi),  # never inverted under a low cap
         "grey_hr": (easy_hi, _r5(0.88 * hm)),
         "hard_hr": (_r5(0.90 * hm), _r5(0.95 * hm)),
     }

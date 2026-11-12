@@ -16,7 +16,7 @@ from ..analysis import trend as T
 from ..analysis.hr import ZONE_NAMES
 from ..analyze import Result
 from . import figures as F
-from .narrative import GLOSSARY, alpha1_insights, breathing_insights, cardio_insights, trend_insights
+from .narrative import GLOSSARY, _vt1, alpha1_insights, alpha1_verdict, breathing_insights, cardio_insights, trend_insights
 
 HERE = Path(__file__).parent
 TEMPLATES = HERE / "templates"
@@ -46,7 +46,7 @@ def _md(items: list[str]) -> list[str]:
     return [md.markdown(x)[3:-4] for x in items]  # strip <p></p>
 
 
-def _kpis(seg) -> list[tuple]:
+def _kpis(seg, vt1: float | None = None) -> list[tuple]:
     """(label, value, sub, glossary key) tiles for an exercise card."""
     m = seg.metrics
     k = [("Time", mmss(m.get("duration_s")), "", None)]
@@ -73,7 +73,7 @@ def _kpis(seg) -> list[tuple]:
         k += [("Decoupling", num(m["decoupling_pct"], "{:.1f}", " %"), "power:HR, < 5 % steady", "decoupling")]
     if m.get("alpha1") is not None:
         a = m["alpha1"]
-        k += [("DFA α1", num(a, "{:.2f}"), "easy" if a > 1 else "below VT1" if a > .75 else "grey zone" if a > .5 else "above VT2", "alpha1")]
+        k += [("DFA α1", num(a, "{:.2f}"), alpha1_verdict(a, m.get("hr_avg"), vt1)[0], "alpha1")]
     if m.get("acc_rhythm_cv") is not None:
         k += [("Rhythm", num(m["acc_rhythm_cv"] * 100, "{:.1f}", " %"), "stroke timing spread", "rhythm")]
     if m.get("breath_coupling_1") is not None:
@@ -178,7 +178,7 @@ def render(res: Result, out: Path | None = None) -> Path:
             "label": seg.label,
             "start": num((seg.t0 - res.t_origin) / 60, "{:.1f}"),
             "piece": seg.piece.key if seg.piece else "not logged on PM5",
-            "kpis": _kpis(seg),
+            "kpis": _kpis(seg, _vt1(res)),
             "checks": _target_check(seg),
             "fig": _div(F.piece_detail(res, seg)),
             "zones": _div(F.zone_bar(seg.metrics["zones_s"], 64)) if seg.metrics.get("zones_s") else "",
