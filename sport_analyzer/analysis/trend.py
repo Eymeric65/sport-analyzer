@@ -80,7 +80,8 @@ def piece_fitness(seg, slope: float, hr_rest: float = REST_HR_DEFAULT) -> dict |
     """Steady-state watts and HR of one piece (min 5 to half-way), projected to 140 bpm.
 
     Skipping the first 5 min avoids the HR on-kinetics; stopping at half-way keeps most of the
-    cardiac drift out (and a sprint finish). Pieces >= 8 min whose window is steady (power CV < 20 %) qualify."""
+    cardiac drift out (and a sprint finish). Pieces >= 8 min whose window is steady (power CV < 20 %)
+    and aerobic (HR <= 160 bpm) qualify."""
     p = seg.piece
     if seg.kind != "exercise" or p is None or p.duration_s < 480:
         return None
@@ -89,6 +90,8 @@ def piece_fitness(seg, slope: float, hr_rest: float = REST_HR_DEFAULT) -> dict |
         return None
     w, h, _, _ = st
     if h < hr_rest + 25:
+        return None
+    if h > REF_HR + 20:  # a test or race piece (e.g. a 2k at 188 bpm) is not an aerobic marker
         return None
     out = {"steady_watts": w, "steady_hr": h, "ef_net": w / (h - hr_rest)}
     if abs(REF_HR - h) <= 20:  # no more than ~25 W of projection along the slope
