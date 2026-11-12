@@ -55,15 +55,22 @@ def detect_beats(rec: PolarRecording) -> Beats:
     b2, a2 = signal.butter(2, [0.5, 40], btype="band", fs=fs)
     g = signal.filtfilt(b2, a2, xu)
     h = int(0.04 * fs)
-    pk = np.array([k - h + int(np.argmax(g[max(k - h, 0) : k + h + 1])) for k in keep])
+    # Polarity: a strap worn flipped or rotated gives a QRS whose main deflection is negative.
+    # Taking the signed max then lands on the small R or the T wave, jumping between them
+    # beat to beat, and the alternating RR drags DFA alpha1 to ~0.2. Lock onto the dominant lobe.
+    pol = _polarity(g, keep, h)
+    gp = pol * g
+    pk = np.array([max(k - h, 0) + int(np.argmax(gp[max(k - h, 0) : k + h + 1])) for k in keep])
     pk = np.unique(pk)
 
     info, pkc = nk.signal_fixpeaks(pk, sampling_rate=fs, method="kubios", iterative=True, show=False)
     n_fixed = sum(len(info[k]) for k in ("ectopic", "missed", "extra", "longshort"))
-    rr_t = tu[pkc]
+    # sub-sample timing: at 130 Hz one sample is 7.7 ms, as large as the beat-to-beat
+    # variation while exercising, so integer peaks alone bias alpha1 low
+    rr_t = tu[pkc] + _parabolic_offset(gp, pkc) / fs
     return Beats(
         t=tu[pk],
-        amp=g[pk],
+        amp=gp[pk],
         rr_t=rr_t,
         rr_ms=np.diff(rr_t) * 1e3,
         artefact_rate=n_fixed / max(len(pk), 1),
@@ -71,6 +78,26 @@ def detect_beats(rec: PolarRecording) -> Beats:
         ecg_t=tu,
         ecg=g,
     )
+
+
+def _polarity(g: np.ndarray, centres: list[int], h: int) -> int:
+    """+1 if the QRS's largest deflection is positive, -1 if it is negative (median over beats)."""
+    if not centres:
+        return 1
+    hi = np.array([g[max(k - h, 0) : k + h + 1].max() for k in centres])
+    lo = np.array([g[max(k - h, 0) : k + h + 1].min() for k in centres])
+    return 1 if np.median(hi) >= np.median(-lo) else -1
+
+
+def _parabolic_offset(y: np.ndarray, idx: np.ndarray) -> np.ndarray:
+    """Sub-sample position (in samples, within ±0.5) of the local maxima at ``idx``."""
+    i = np.clip(np.asarray(idx), 1, len(y) - 2)
+    y0, y1, y2 = y[i - 1], y[i], y[i + 1]
+    den = y0 - 2 * y1 + y2
+    peak = (y1 >= y0) & (y1 >= y2) & (den < 0)  # Kubios-inserted beats may not sit on a peak
+    off = np.zeros(len(i))
+    off[peak] = 0.5 * (y0[peak] - y2[peak]) / den[peak]
+    return off.clip(-0.5, 0.5)
 
 
 def beat_hr_series(beats: Beats, grid: np.ndarray, smooth_beats: int = 5) -> np.ndarray:

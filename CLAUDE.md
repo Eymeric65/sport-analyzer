@@ -22,6 +22,7 @@ They drive `analysis/recommend.py`: the actions, the next-session prescription a
   - The sensor clock may be unsynchronised, so time is re-anchored on `phoneTimestamp`.
   - Recordings shorter than 60 s are test stubs and are skipped.
 - **Alignment**: each C2 piece is placed on the H10 timeline by matching its HR column (the PM5 receives HR from the H10).
+- **ECG polarity**: when the strap sits flipped or rotated (2026-11-09/11), the QRS is mostly negative (small R, big S). `ecg.detect_beats` picks the dominant lobe and refines peaks to sub-sample (one sample = 7.7 ms). Without that, α1 drops to ~0.2 at an easy HR. Cross-check against the strap's RR (`rec.rr`) when α1 looks odd.
 - **ECG while rowing** is EMG-heavy. The HR-guided R-peak detector plus Kubios correction beats neurokit and the strap's RR, which drops 8–15 % of beats while rowing. DFA-α1 windows with more than 2 % suspicious beats are rejected.
 - **Breathing**: EDR (R-amplitude) is clean at rest. While rowing it locks onto the stroke, so it is reported as coupling, not as a rate. The neural-net EDR (phase 2) should be validated against rest windows or a paced-breathing block.
 
