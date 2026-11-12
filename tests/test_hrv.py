@@ -32,6 +32,6 @@ def test_real_ramp_still_found():
 def test_low_alpha1_at_easy_hr_is_not_graded():
     from sport_analyzer.report.narrative import alpha1_verdict
 
-    assert alpha1_verdict(0.29, 126, 141)[0] == "not readable (rowing)"
+    assert alpha1_verdict(0.29, 126, 141)[0] == "doesn't match HR"
     assert alpha1_verdict(0.45, 165, 141)[0] == "above VT2"
     assert alpha1_verdict(1.1, 120, 141)[0] == "easy"

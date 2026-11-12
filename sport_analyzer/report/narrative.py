@@ -15,7 +15,7 @@ GLOSSARY = {
            "Below it you can go for hours, and this is where ~80 % of cardio training should happen.",
     "alpha1": "DFA α1: how 'fractal' the beat-to-beat rhythm is. ~1.0 and above = relaxed, rich variability. It falls as effort rises: "
               "0.75 ≈ aerobic threshold (VT1), 0.5 ≈ anaerobic threshold (VT2). It is measured from the ECG, with no mask or lab test needed. "
-              "While rowing, the stroke rhythm can pull it down even at an easy HR, so a low value under your threshold HR is not graded.",
+              "A low value while HR is well under your threshold points to a noisy ECG rather than effort, so it is not graded.",
     "watts_vt1": "The power you can hold with HR at your aerobic threshold. This is the key cardio-progress number: the same HR "
                  "producing more watts = a bigger aerobic engine.",
     "power": "Average power on the flywheel. 'Steady' excludes the first 10 s of acceleration. CV = coefficient of variation: "
@@ -102,13 +102,13 @@ def breathing_insights(res) -> list[str]:
 def alpha1_verdict(a: float, hr: float | None, vt1: float | None) -> tuple[str, str]:
     """(tile label, sentence) for a piece's median α1, cross-checked against its HR.
 
-    While rowing, the stroke rhythm and EMG in the ECG pull α1 down even at an easy HR. A low α1
-    with HR well under the aerobic threshold is that artefact, not intensity, so it is not graded.
+    A low α1 with HR well under the aerobic threshold contradicts the HR: it points to a beat
+    timing problem in the ECG (noise, an odd QRS shape), not to intensity, so it is not graded.
     """
     if a <= 0.75 and hr and vt1 and hr < vt1 - 5:
-        return ("not readable (rowing)",
-                f"not readable: HR ({hr:.0f} bpm) was well under your aerobic threshold (≈ {vt1:.0f} bpm), "
-                "and while rowing the stroke rhythm pulls α1 down, so it can't grade this piece")
+        return ("doesn't match HR",
+                f"not graded: HR ({hr:.0f} bpm) was well under your aerobic threshold (≈ {vt1:.0f} bpm), "
+                "so a low α1 here more likely means a noisy ECG than a hard effort")
     if a > 1.0:
         return "easy", "well below threshold: truly easy"
     if a > 0.75:
