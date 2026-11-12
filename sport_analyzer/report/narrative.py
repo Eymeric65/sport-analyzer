@@ -14,7 +14,8 @@ GLOSSARY = {
     "vt1": "Aerobic threshold (VT1, first ventilatory threshold): the intensity where breathing first speeds up and lactate starts to rise. "
            "Below it you can go for hours, and this is where ~80 % of cardio training should happen.",
     "alpha1": "DFA α1: how 'fractal' the beat-to-beat rhythm is. ~1.0 and above = relaxed, rich variability. It falls as effort rises: "
-              "0.75 ≈ aerobic threshold (VT1), 0.5 ≈ anaerobic threshold (VT2). It is measured from the ECG, with no mask or lab test needed.",
+              "0.75 ≈ aerobic threshold (VT1), 0.5 ≈ anaerobic threshold (VT2). It is measured from the ECG, with no mask or lab test needed. "
+              "While rowing, the stroke rhythm can pull it down even at an easy HR, so a low value under your threshold HR is not graded.",
     "watts_vt1": "The power you can hold with HR at your aerobic threshold. This is the key cardio-progress number: the same HR "
                  "producing more watts = a bigger aerobic engine.",
     "power": "Average power on the flywheel. 'Steady' excludes the first 10 s of acceleration. CV = coefficient of variation: "
@@ -98,6 +99,29 @@ def breathing_insights(res) -> list[str]:
     return out
 
 
+def alpha1_verdict(a: float, hr: float | None, vt1: float | None) -> tuple[str, str]:
+    """(tile label, sentence) for a piece's median α1, cross-checked against its HR.
+
+    While rowing, the stroke rhythm and EMG in the ECG pull α1 down even at an easy HR. A low α1
+    with HR well under the aerobic threshold is that artefact, not intensity, so it is not graded.
+    """
+    if a <= 0.75 and hr and vt1 and hr < vt1 - 5:
+        return ("not readable (rowing)",
+                f"not readable: HR ({hr:.0f} bpm) was well under your aerobic threshold (≈ {vt1:.0f} bpm), "
+                "and while rowing the stroke rhythm pulls α1 down, so it can't grade this piece")
+    if a > 1.0:
+        return "easy", "well below threshold: truly easy"
+    if a > 0.75:
+        return "below VT1", "just below threshold: ideal endurance intensity"
+    if a > 0.5:
+        return "grey zone", "above the aerobic threshold: the 'grey zone'"
+    return "above VT2", "near/above the anaerobic threshold: hard"
+
+
+def _vt1(res) -> float | None:
+    return (res.recommendations.get("zones") or {}).get("vt1_hr") or res.summary.get("hr_at_alpha1_075")
+
+
 def alpha1_insights(res) -> list[str]:
     out = []
     sm = res.summary
@@ -116,10 +140,7 @@ def alpha1_insights(res) -> list[str]:
         a = s.metrics.get("alpha1")
         if a is None or s.kind != "exercise":
             continue
-        verdict = ("well below threshold: truly easy" if a > 1.0 else
-                   "just below threshold: ideal endurance intensity" if a > 0.75 else
-                   "above the aerobic threshold: the 'grey zone'" if a > 0.5 else
-                   "near/above the anaerobic threshold: hard")
+        verdict = alpha1_verdict(a, s.metrics.get("hr_avg"), _vt1(res))[1]
         out.append(f"{s.label}: median α1 **{a:.2f}**, {verdict}.")
     cd = next((s for s in res.segments if s.kind == "exercise" and "cool" in s.label.lower()), None)
     if cd and cd.metrics.get("alpha1") and cd.metrics.get("hr_avg") and hr75 and cd.metrics["alpha1"] < 0.8 and cd.metrics["hr_avg"] < hr75:
