@@ -152,7 +152,42 @@ def load_recording(rec_dir: Path) -> PolarRecording | None:
         # folder name is phone local time; compare with the UTC epoch of the first sample
         diff = (start_local - datetime(1970, 1, 1)).total_seconds() - hr["t"].iloc[0]
         rec.tz_offset_s = round(diff / 900) * 900
+    _trim_no_contact(rec)
     return rec
+
+
+NO_CONTACT_TRIM_S = 60.0
+
+
+def _trim_no_contact(rec: PolarRecording, min_gap_s: float = NO_CONTACT_TRIM_S) -> None:
+    """Cut the head/tail of a recording where the strap reports no skin contact.
+
+    When the H10 is taken off but the app keeps recording, it goes on logging an HR value
+    (often 150-200 bpm of noise) with ``contactStatus`` false. Every stream is cropped to
+    the span between the first and last sample with contact, provided the cut-off part
+    lasts at least ``min_gap_s`` (short dropouts while rowing are left alone).
+    """
+    hr = rec.hr
+    if not len(hr) or hr["contact"].all():
+        return
+    on = hr.loc[hr["contact"].astype(bool), "t"]
+    if not len(on):
+        return
+    t_start, t_end = float(hr["t"].iloc[0]), float(hr["t"].iloc[-1])
+    lo = float(on.iloc[0]) if on.iloc[0] - t_start >= min_gap_s else t_start
+    hi = float(on.iloc[-1]) if t_end - on.iloc[-1] >= min_gap_s else t_end
+    if lo == t_start and hi == t_end:
+        return
+    for name in ("hr", "rr", "ecg", "acc"):
+        df = getattr(rec, name)
+        if len(df):
+            setattr(rec, name, df[(df["t"] >= lo) & (df["t"] <= hi)].reset_index(drop=True))
+    cut = []
+    if lo > t_start:
+        cut.append(f"{(lo - t_start) / 60:.1f} min at the start")
+    if hi < t_end:
+        cut.append(f"{(t_end - hi) / 60:.1f} min at the end")
+    rec.notes.append(f"Strap had no skin contact; dropped {' and '.join(cut)} of the recording.")
 
 
 def load_recordings(session_dir: Path, min_duration_s: float = MIN_DURATION_S) -> tuple[list[PolarRecording], list[str]]:

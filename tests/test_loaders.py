@@ -19,7 +19,8 @@ def hr_curve(t):
     return 90 + 60 * np.clip((t - 60) / 120, 0, 1) - 40 * np.clip((t - 400) / 60, 0, 1)
 
 
-def write_polar(session: Path, name: str, duration: float, sensor_offset_s: float, ecg_split: bool = False):
+def write_polar(session: Path, name: str, duration: float, sensor_offset_s: float, ecg_split: bool = False,
+                contact_until: float | None = None):
     dev = session / name / "Polar H10 TEST"
     dev.mkdir(parents=True)
     # ECG at 130 Hz in 0.5 s batches, sensor clock = phone clock + sensor_offset_s
@@ -45,7 +46,7 @@ def write_polar(session: Path, name: str, duration: float, sensor_offset_s: floa
     (dev / "ACC_part2.jsonl").write_text("\n".join(acc[half:]) + "\n")
     # HR at 1 Hz
     hr = [json.dumps({"phoneTimestamp": int((PHONE_T0 + t) * 1000), "dataType": "HR",
-                      "data": [{"hr": int(round(hr_curve(t))), "contactStatus": True, "rrsMs": [int(60000 / hr_curve(t))]}]})
+                      "data": [{"hr": int(round(hr_curve(t))), "contactStatus": bool(contact_until is None or t <= contact_until), "rrsMs": [int(60000 / hr_curve(t))]}]})
           for t in np.arange(0, duration, 1.0)]
     (dev / "HR.jsonl").write_text("\n".join(hr) + "\n")
 
@@ -99,3 +100,22 @@ def test_alignment(session):
     align_pieces(pieces, r)
     for p, true_start in zip(pieces, [100, 395, 430]):
         assert abs((p.t_start - r.t0) - true_start) < 3, p.key
+
+
+def test_no_contact_tail_is_trimmed(tmp_path):
+    s = tmp_path / "20260102"
+    s.mkdir()
+    write_polar(s, "PolarRecording_20260102_100000", 600, sensor_offset_s=0, contact_until=400)
+    (r,), _ = load_recordings(s)
+    assert r.t1 <= PHONE_T0 + 400.5
+    assert r.ecg["t"].iloc[-1] <= PHONE_T0 + 401 and r.acc["t"].iloc[-1] <= PHONE_T0 + 401
+    assert r.hr["contact"].all()
+    assert any("no skin contact" in n for n in r.notes)
+
+
+def test_short_contact_dropout_kept(tmp_path):
+    s = tmp_path / "20260103"
+    s.mkdir()
+    write_polar(s, "PolarRecording_20260103_100000", 600, sensor_offset_s=0, contact_until=570)
+    (r,), _ = load_recordings(s)
+    assert r.t1 >= PHONE_T0 + 598
