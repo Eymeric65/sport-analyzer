@@ -100,7 +100,9 @@ def analyze(session_dir) -> Result:
         res.hrv = hrv.rolling_hrv(b.rr_t, b.rr_ms, b.t)
         res.resp_grid, res.resp_sig = respiration.surrogate_signals(b, g, xyz)
         res.breathing = respiration.breathing_windows(res.resp_grid, res.resp_sig, res.activity)
-        res.summary["hr_at_alpha1_075"] = hrv.hr_at_alpha1(res.hrv)
+        # exercise only, skipping the first minute of each piece (HR still catching up)
+        spans = [(p.t_start + 60, p.t_start + p.duration_s) for p in s.pieces if p.t_start is not None]
+        res.summary["hr_at_alpha1_075"] = hrv.hr_at_alpha1(res.hrv, spans=spans)
         res.summary["hrv_unreliable_share"] = float((~res.hrv["reliable"]).mean())
         res.summary["breath_agree_edr_acc"] = respiration.agreement(res.breathing)
         res.summary["breath_agree_edr_rsa"] = respiration.agreement(res.breathing, "edr", "rsa")
